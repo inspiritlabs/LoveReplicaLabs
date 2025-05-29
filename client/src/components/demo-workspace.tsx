@@ -408,15 +408,14 @@ export default function DemoWorkspace() {
   }
 
   return (
-    <section id="demo-workspace" className="py-24" ref={ref}>
+    <section id="demo-workspace" className="py-12 min-h-screen" ref={ref}>
       <div className="container mx-auto px-4">
-        <h1 className="text-4xl md:text-5xl font-bold text-center mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500">
-          Interactive AI Demo
-        </h1>
-        <p className="text-center text-gray-300 max-w-3xl mx-auto mb-12">
-          Experience how our technology creates authentic connections through this interactive demo. Upload audio,
-          customize personality traits, and chat with your personalized AI companion.
-        </p>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold cosmic-glow">Create Your Replica</h1>
+          <button className="secondary-button px-4 py-2 rounded-lg text-white">
+            Sign Out
+          </button>
+        </div>
 
         {/* Premium colorful box around the entire demo */}
         <div className="relative max-w-6xl mx-auto">
