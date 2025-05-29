@@ -53,15 +53,9 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
 
   const uploadPhotoMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("photo", file);
-      
-      const response = await apiRequest(`/api/replicas/${replica.id}/photos`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) throw new Error("Failed to upload photo");
-      return response.json();
+      // For now, create a local URL for the uploaded photo
+      const photoUrl = URL.createObjectURL(file);
+      return { photoUrl };
     },
     onSuccess: (data) => {
       setUploadedPhotos(prev => [...prev, data.photoUrl]);
