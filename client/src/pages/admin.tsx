@@ -9,11 +9,31 @@ interface User {
   createdAt: string;
 }
 
+interface ChatMessage {
+  id: number;
+  content: string;
+  role: string;
+  audioUrl: string | null;
+  createdAt: string;
+  replicaName: string;
+  userEmail: string;
+}
+
+interface Replica {
+  id: number;
+  name: string;
+  audioUrl: string | null;
+  voiceId: string | null;
+  userEmail: string;
+  createdAt: string;
+}
+
 export default function Admin() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [editingUser, setEditingUser] = useState<number | null>(null);
   const [newCredits, setNewCredits] = useState("");
+  const [activeTab, setActiveTab] = useState<"users" | "chats" | "voices">("users");
   const queryClient = useQueryClient();
 
   const { data: users, isLoading } = useQuery({
@@ -28,6 +48,34 @@ export default function Admin() {
       return response.json() as Promise<User[]>;
     },
     enabled: isAuthenticated,
+  });
+
+  const { data: chats } = useQuery({
+    queryKey: ["/api/admin/chats"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/chats", {
+        headers: {
+          "Authorization": `Bearer ${password}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch chats");
+      return response.json() as Promise<ChatMessage[]>;
+    },
+    enabled: isAuthenticated && activeTab === "chats",
+  });
+
+  const { data: replicas } = useQuery({
+    queryKey: ["/api/admin/replicas"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/replicas", {
+        headers: {
+          "Authorization": `Bearer ${password}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch replicas");
+      return response.json() as Promise<Replica[]>;
+    },
+    enabled: isAuthenticated && activeTab === "voices",
   });
 
   const updateCreditsMutation = useMutation({
@@ -111,12 +159,35 @@ export default function Admin() {
           </button>
         </div>
 
-        <div className="glass-card rounded-xl p-8">
-          <h2 className="text-2xl font-semibold mb-6">User Management</h2>
+        {/* Tab Navigation */}
+        <div className="flex gap-4 mb-8">
+          {[
+            { key: "users", label: "Users & Credits" },
+            { key: "chats", label: "Chat History" },
+            { key: "voices", label: "Voice Uploads" }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                activeTab === tab.key 
+                  ? "primary-button text-white" 
+                  : "secondary-button text-gray-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Users Tab */}
+        {activeTab === "users" && (
+          <div className="glass-card rounded-xl p-8">
+            <h2 className="text-2xl font-semibold mb-6">User Management</h2>
           
-          {isLoading ? (
-            <div className="text-center py-8">Loading users...</div>
-          ) : (
+            {isLoading ? (
+              <div className="text-center py-8">Loading users...</div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
