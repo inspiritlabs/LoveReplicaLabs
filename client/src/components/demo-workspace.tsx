@@ -91,6 +91,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [messagesRemaining, setMessagesRemaining] = useState(10)
   const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false)
+  const [currentReplica, setCurrentReplica] = useState<any>(null)
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -324,22 +325,55 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   }
 
   // Generate demo
-  const generateDemo = () => {
+  const generateDemo = async () => {
     if (!isFormValid()) return
 
     setIsGenerating(true)
     setGenerationError(null)
 
-    // Simulate API call with setTimeout
-    const timer = setTimeout(() => {
-      if (isMounted.current) {
-        setIsGenerating(false)
-        setGenerationComplete(true)
-      }
-    }, 25000)
+    try {
+      // Create replica in database
+      const response = await fetch("/api/replicas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          name: name,
+          audioUrl: audioUrl,
+          personalityDescription: personalityDescription,
+          personalityTraits: personalityTraits,
+          memories: memories,
+          isGenerated: false,
+        }),
+      })
 
-    // Clean up timer if component unmounts
-    return () => clearTimeout(timer)
+      if (response.ok) {
+        const replica = await response.json()
+        setCurrentReplica(replica)
+        
+        // Simulate generation time
+        const timer = setTimeout(() => {
+          if (isMounted.current) {
+            setIsGenerating(false)
+            setGenerationComplete(true)
+            // Update replica as generated
+            fetch(`/api/replicas/${replica.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ isGenerated: true }),
+            })
+          }
+        }, 25000)
+
+        return () => clearTimeout(timer)
+      } else {
+        throw new Error("Failed to create replica")
+      }
+    } catch (error) {
+      console.error("Error creating replica:", error)
+      setGenerationError("Failed to create replica. Please try again.")
+      setIsGenerating(false)
+    }
   }
 
   // Send message
