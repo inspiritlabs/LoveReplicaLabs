@@ -1,39 +1,74 @@
-import { users, type User, type InsertUser } from "@shared/schema";
-
-// modify the interface with any CRUD methods
-// you might need
+import { users, replicas, chatMessages, type User, type InsertUser, type Replica, type InsertReplica, type ChatMessage, type InsertChatMessage } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
+  // User methods
   getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  
+  // Replica methods
+  createReplica(replica: InsertReplica): Promise<Replica>;
+  getUserReplicas(userId: number): Promise<Replica[]>;
+  updateReplica(id: number, updates: Partial<InsertReplica>): Promise<Replica | undefined>;
+  
+  // Chat methods
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  getReplicaMessages(replicaId: number): Promise<ChatMessage[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  currentId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.currentId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
+  }
+
+  async createReplica(replica: InsertReplica): Promise<Replica> {
+    const [newReplica] = await db
+      .insert(replicas)
+      .values(replica)
+      .returning();
+    return newReplica;
+  }
+
+  async getUserReplicas(userId: number): Promise<Replica[]> {
+    return await db.select().from(replicas).where(eq(replicas.userId, userId));
+  }
+
+  async updateReplica(id: number, updates: Partial<InsertReplica>): Promise<Replica | undefined> {
+    const [updatedReplica] = await db
+      .update(replicas)
+      .set(updates)
+      .where(eq(replicas.id, id))
+      .returning();
+    return updatedReplica || undefined;
+  }
+
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [newMessage] = await db
+      .insert(chatMessages)
+      .values(message)
+      .returning();
+    return newMessage;
+  }
+
+  async getReplicaMessages(replicaId: number): Promise<ChatMessage[]> {
+    return await db.select().from(chatMessages).where(eq(chatMessages.replicaId, replicaId));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
