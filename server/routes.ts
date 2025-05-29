@@ -303,6 +303,45 @@ Respond naturally as this person would, incorporating these traits into your com
     }
   });
 
+  app.get("/api/admin/chats", async (req, res) => {
+    try {
+      const adminPassword = req.headers.authorization;
+      if (adminPassword !== "Bearer admin123") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const chats = await storage.getAllChatMessages();
+      res.json(chats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch chats" });
+    }
+  });
+
+  app.get("/api/admin/replicas", async (req, res) => {
+    try {
+      const adminPassword = req.headers.authorization;
+      if (adminPassword !== "Bearer admin123") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const users = await storage.getAllUsers();
+      const allReplicas = [];
+      
+      for (const user of users) {
+        const userReplicas = await storage.getUserReplicas(user.id);
+        const replicasWithUser = userReplicas.map(replica => ({
+          ...replica,
+          userEmail: user.email
+        }));
+        allReplicas.push(...replicasWithUser);
+      }
+
+      res.json(allReplicas);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch replicas" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

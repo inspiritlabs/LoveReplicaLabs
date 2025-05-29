@@ -18,6 +18,7 @@ export interface IStorage {
   // Chat methods
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getReplicaMessages(replicaId: number): Promise<ChatMessage[]>;
+  getAllChatMessages(): Promise<(ChatMessage & { replicaName: string; userEmail: string })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -83,6 +84,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return updatedUser || undefined;
+  }
+
+  async getAllChatMessages(): Promise<(ChatMessage & { replicaName: string; userEmail: string })[]> {
+    const result = await db
+      .select({
+        id: chatMessages.id,
+        replicaId: chatMessages.replicaId,
+        role: chatMessages.role,
+        content: chatMessages.content,
+        audioUrl: chatMessages.audioUrl,
+        feedback: chatMessages.feedback,
+        feedbackText: chatMessages.feedbackText,
+        createdAt: chatMessages.createdAt,
+        replicaName: replicas.name,
+        userEmail: users.email,
+      })
+      .from(chatMessages)
+      .innerJoin(replicas, eq(chatMessages.replicaId, replicas.id))
+      .innerJoin(users, eq(replicas.userId, users.id))
+      .orderBy(chatMessages.createdAt);
+    
+    return result;
   }
 }
 
