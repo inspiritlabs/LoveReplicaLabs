@@ -164,11 +164,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const data = JSON.parse(responseText);
+      console.log("Voice created successfully:", data.voice_id);
       res.json({ voiceId: data.voice_id });
 
     } catch (error) {
       console.error("Voice creation error:", error);
-      res.status(500).json({ error: error.message || "Failed to create voice" });
+      res.status(500).json({ error: (error as Error).message || "Failed to create voice" });
     }
   });
 
@@ -205,7 +206,7 @@ Respond naturally as this person would, incorporating these traits into your com
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4",
+          model: "gpt-4o-mini",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: message }
@@ -279,6 +280,182 @@ Respond naturally as this person would, incorporating these traits into your com
     } catch (error) {
       console.error("AI response error:", error);
       res.status(500).json({ error: "Failed to generate AI response" });
+    }
+  });
+
+  // Replica chat endpoint with real OpenAI and ElevenLabs integration
+  app.post("/api/replicas/:id/chat", async (req, res) => {
+    try {
+      const replicaId = parseInt(req.params.id);
+      const { content } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ error: "Message content required" });
+      }
+
+      console.log("Processing chat request for replica:", replicaId, "Message:", content);
+
+      // Get replica data - simplified for now
+      const allUsers = await storage.getAllUsers();
+      let currentReplica = null;
+      let replicaUser = null;
+
+      for (const user of allUsers) {
+        const userReplicas = await storage.getUserReplicas(user.id);
+        const found = userReplicas.find(r => r.id === replicaId);
+        if (found) {
+          currentReplica = found;
+          replicaUser = user;
+          break;
+        }
+      }
+      
+      if (!currentReplica || !replicaUser) {
+        return res.status(404).json({ error: "Replica not found" });
+      }
+
+      // Check user credits
+      if ((replicaUser.credits || 0) <= 0) {
+        return res.status(402).json({ error: "Insufficient credits" });
+      }
+
+      // Build system prompt with personality traits
+      const personalityTraits = currentReplica.personalityTraits as any || {
+        warmth: 5, humor: 5, thoughtfulness: 5, empathy: 5, assertiveness: 5, energy: 5
+      };
+
+      const systemPrompt = `You are a digital replica with the following personality:
+${currentReplica.personalityDescription || "You are a helpful and engaging AI assistant."}
+
+Personality traits (1-10 scale):
+- Warmth: ${personalityTraits.warmth}/10
+- Humor: ${personalityTraits.humor}/10  
+- Thoughtfulness: ${personalityTraits.thoughtfulness}/10
+- Empathy: ${personalityTraits.empathy}/10
+- Assertiveness: ${personalityTraits.assertiveness}/10
+- Energy: ${personalityTraits.energy}/10
+
+Respond naturally as this person would, incorporating these traits into your communication style. Keep responses conversational and under 100 words.`;
+
+      console.log("Sending request to OpenAI with system prompt length:", systemPrompt.length);
+
+      // Call OpenAI API
+      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: content }
+          ],
+          max_tokens: 150,
+          temperature: 0.8,
+        }),
+      });
+
+      const openaiResponseText = await openaiResponse.text();
+      console.log("OpenAI response status:", openaiResponse.status);
+      console.log("OpenAI response:", openaiResponseText.substring(0, 200));
+
+      if (!openaiResponse.ok) {
+        console.error("OpenAI API error:", openaiResponse.status, openaiResponseText);
+        throw new Error(`OpenAI API error: ${openaiResponse.status}`);
+      }
+
+      const openaiData = JSON.parse(openaiResponseText);
+      const aiMessage = openaiData.choices[0].message.content;
+      
+      console.log("AI generated message:", aiMessage);
+
+      let audioUrl = null;
+
+      // Generate audio with ElevenLabs if voice ID exists
+      if (currentReplica.voiceId) {
+        try {
+          console.log("Generating voice with ElevenLabs for voice ID:", currentReplica.voiceId);
+          
+          const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
+            method: "POST",
+            headers: {
+              "xi-api-key": ELEVEN_API_KEY,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              text: aiMessage,
+              model_id: "eleven_monolingual_v1",
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.5,
+              },
+            }),
+          });
+
+          console.log("ElevenLabs TTS response status:", elevenResponse.status);
+
+          if (elevenResponse.ok) {
+            const audioBuffer = await elevenResponse.arrayBuffer();
+            const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+            audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
+            console.log("Voice generation successful, audio size:", audioBuffer.byteLength, "bytes");
+          } else {
+            const errorText = await elevenResponse.text();
+            console.error("ElevenLabs TTS error:", elevenResponse.status, errorText);
+          }
+        } catch (voiceError) {
+          console.error("Voice generation failed:", voiceError);
+        }
+      } else {
+        console.log("No voice ID available for replica, skipping voice generation");
+      }
+
+      // Save messages to database
+      const userMessage = await storage.createChatMessage({
+        replicaId: replicaId,
+        role: "user",
+        content: content,
+        audioUrl: null,
+        feedback: null,
+        feedbackText: null,
+      });
+
+      const assistantMessage = await storage.createChatMessage({
+        replicaId: replicaId,
+        role: "assistant", 
+        content: aiMessage,
+        audioUrl: audioUrl,
+        feedback: null,
+        feedbackText: null,
+      });
+
+      // Deduct 1 credit
+      const newCredits = (replicaUser.credits || 0) - 1;
+      await storage.updateUserCredits(replicaUser.id, newCredits);
+
+      console.log("Chat completed successfully, credits remaining:", newCredits);
+
+      res.json({
+        userMessage: {
+          id: userMessage.id.toString(),
+          role: "user",
+          content: content,
+          audioUrl: null,
+        },
+        aiMessage: {
+          id: assistantMessage.id.toString(),
+          role: "assistant", 
+          content: aiMessage,
+          audioUrl: audioUrl,
+        },
+        creditsRemaining: newCredits
+      });
+
+    } catch (error) {
+      console.error("Chat error:", error);
+      res.status(500).json({ error: "Failed to process chat message" });
     }
   });
 
