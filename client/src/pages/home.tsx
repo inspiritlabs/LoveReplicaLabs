@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -7,19 +8,37 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     
     setIsLoading(true);
+    setError("");
     
-    // Simulate auth - replace with real Firebase/Supabase auth
-    setTimeout(() => {
+    try {
+      const endpoint = isSignIn ? "/api/auth/login" : "/api/auth/register";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Store user data in localStorage
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setLocation("/dashboard");
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Authentication failed");
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+    } finally {
       setIsLoading(false);
-      // Redirect to dashboard after successful auth
-      setLocation("/dashboard");
-    }, 1500);
+    }
   };
 
   return (
@@ -54,6 +73,12 @@ export default function Home() {
               required
             />
           </div>
+
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"

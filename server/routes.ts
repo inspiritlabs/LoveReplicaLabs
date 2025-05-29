@@ -4,6 +4,9 @@ import { storage } from "./storage";
 import { insertUserSchema, insertReplicaSchema, insertChatMessageSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
+const OPENAI_API_KEY = "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";
+const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
@@ -107,6 +110,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(messages);
     } catch (error) {
       res.status(400).json({ error: "Invalid request" });
+    }
+  });
+
+  // AI Chat endpoint with OpenAI and ElevenLabs
+  app.post("/api/chat/ai-response", async (req, res) => {
+    try {
+      const { message, replicaId, personalityTraits, personalityDescription } = req.body;
+
+      // Build system prompt based on personality
+      const systemPrompt = `You are a digital replica with the following personality:
+${personalityDescription}
+
+Personality traits (1-10 scale):
+- Warmth: ${personalityTraits.warmth}/10
+- Humor: ${personalityTraits.humor}/10  
+- Thoughtfulness: ${personalityTraits.thoughtfulness}/10
+- Empathy: ${personalityTraits.empathy}/10
+- Assertiveness: ${personalityTraits.assertiveness}/10
+- Energy: ${personalityTraits.energy}/10
+
+Respond naturally as this person would, incorporating these traits into your communication style.`;
+
+      // Call OpenAI API
+      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message }
+          ],
+          max_tokens: 150,
+          temperature: 0.8,
+        }),
+      });
+
+      if (!openaiResponse.ok) {
+        throw new Error("OpenAI API error");
+      }
+
+      const openaiData = await openaiResponse.json();
+      const aiMessage = openaiData.choices[0].message.content;
+
+      // Generate audio with ElevenLabs
+      const elevenResponse = await fetch("https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM", {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVEN_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: aiMessage,
+          model_id: "eleven_monolingual_v1",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.5,
+          },
+        }),
+      });
+
+      if (!elevenResponse.ok) {
+        throw new Error("ElevenLabs API error");
+      }
+
+      const audioBuffer = await elevenResponse.arrayBuffer();
+      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+
+      // Save both messages to database
+      await storage.createChatMessage({
+        replicaId: parseInt(replicaId),
+        role: "user",
+        content: message,
+        audioUrl: null,
+        feedback: null,
+        feedbackText: null,
+      });
+
+      const assistantMessage = await storage.createChatMessage({
+        replicaId: parseInt(replicaId),
+        role: "assistant", 
+        content: aiMessage,
+        audioUrl: `data:audio/mpeg;base64,${audioBase64}`,
+        feedback: null,
+        feedbackText: null,
+      });
+
+      res.json({
+        message: aiMessage,
+        audioUrl: `data:audio/mpeg;base64,${audioBase64}`,
+        messageId: assistantMessage.id,
+      });
+
+    } catch (error) {
+      console.error("AI response error:", error);
+      res.status(500).json({ error: "Failed to generate AI response" });
     }
   });
 
