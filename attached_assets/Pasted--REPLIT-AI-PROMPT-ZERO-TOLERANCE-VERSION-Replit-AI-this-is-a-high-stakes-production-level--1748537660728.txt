@@ -1,0 +1,114 @@
+🚨 REPLIT AI PROMPT — ZERO TOLERANCE VERSION
+👋 Replit AI — this is a high-stakes, production-level implementation request for Inspirt Labs.
+You must check every API call, validate every response, and fully wire the frontend and backend — no mocks, no simulation.
+
+🧠 PURPOSE
+We're building an ultra-premium product where users upload a voice, set traits, add memories + photos, and then chat with an AI replica that replies with real voice audio and visual photo presence.
+
+🔐 USE THESE REAL API KEYS:
+js
+Copy
+Edit
+const OPENAI_API_KEY = "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";
+const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
+🔍 MANDATORY FUNCTIONAL CHECKS
+You must:
+
+Validate ElevenLabs voice cloning API is working:
+
+POST to https://api.elevenlabs.io/v1/voices/add
+
+Send FormData with file and name
+
+Parse response: extract voice_id
+
+Log this clearly to the console and show it in UI
+
+Retry if .voice_id is missing or status is not 200
+
+Use the actual voice_id in TTS requests:
+
+POST to /v1/text-to-speech/{voice_id}/stream
+
+Must stream and play response audio from ElevenLabs
+
+Validate it plays in <audio> tag or custom player
+
+Log status, headers, and blob size
+
+Send system prompt + user message to OpenAI chat:
+
+POST to https://api.openai.com/v1/chat/completions
+
+Include system prompt from form + tone traits
+
+Include user message
+
+Model: "gpt-4o-mini" or "gpt-4"
+
+Parse and log the full JSON: choices[0].message.content
+
+Retry on 429 or 500 errors
+
+Log EVERYTHING clearly:
+
+All API request bodies
+
+All raw responses (JSON + headers)
+
+All error stacks (print in console and UI log)
+
+Add automatic retry mechanism (up to 3 times) if:
+
+ElevenLabs returns malformed or null voice_id
+
+OpenAI returns rate limit or timeout
+
+🖼️ ADDITION: “Photos” Tab
+On the replica creation page, add a new section/tab: Photos
+
+Allow user to upload up to 5 photos
+
+Store them in memory array or backend
+
+In the chat interface, these images:
+
+Float in background
+
+Randomly scale, rotate, fade in/out
+
+Have subtle rainbow glow borders like Apple Intelligence
+
+Must not block chat interaction
+
+Animate continuously using @keyframes float, transform, z-index
+
+🚀 END GOAL
+When I:
+
+Upload a voice
+
+Add traits and system prompt
+
+Upload photos
+
+Type a message
+
+I should:
+
+Get a real OpenAI reply
+
+Hear it in the exact cloned voice
+
+See the photo memory visuals behind the chat
+
+Feel like I'm talking to someone real, with presence
+
+This is a serious production request. Do not simulate. Do not fake.
+
+✅ I expect 100% working OpenAI + ElevenLabs pipeline
+✅ Logs shown in browser + console
+✅ Voice works live
+✅ Photos float in chat
+
+Start now. Don't cut corners.
