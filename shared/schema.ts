@@ -7,6 +7,8 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
+  credits: integer("credits").default(10),
+  isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -15,6 +17,7 @@ export const replicas = pgTable("replicas", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   audioUrl: text("audio_url"),
+  voiceId: text("voice_id"),
   personalityDescription: text("personality_description"),
   personalityTraits: jsonb("personality_traits"),
   memories: jsonb("memories"),

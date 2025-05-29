@@ -113,10 +113,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Voice upload and creation endpoint
+  app.post("/api/voice/create", async (req, res) => {
+    try {
+      const { audioFile, name } = req.body;
+      
+      if (!audioFile) {
+        return res.status(400).json({ error: "Audio file required" });
+      }
+
+      // Convert base64 to buffer
+      const audioBuffer = Buffer.from(audioFile.split(',')[1], 'base64');
+      
+      const formData = new FormData();
+      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+      formData.append("files", blob, "voice.wav");
+      formData.append("name", name || "Instant Clone");
+
+      const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+        method: "POST",
+        headers: { "xi-api-key": ELEVEN_API_KEY },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error("ElevenLabs voice creation failed");
+      }
+
+      const data = await response.json();
+      res.json({ voiceId: data.voice_id });
+
+    } catch (error) {
+      console.error("Voice creation error:", error);
+      res.status(500).json({ error: "Failed to create voice" });
+    }
+  });
+
   // AI Chat endpoint with OpenAI and ElevenLabs
   app.post("/api/chat/ai-response", async (req, res) => {
     try {
-      const { message, replicaId, personalityTraits, personalityDescription } = req.body;
+      const { message, replicaId, personalityTraits, personalityDescription, voiceId } = req.body;
 
       // Build system prompt based on personality
       const systemPrompt = `You are a digital replica with the following personality:
@@ -157,8 +193,8 @@ Respond naturally as this person would, incorporating these traits into your com
       const openaiData = await openaiResponse.json();
       const aiMessage = openaiData.choices[0].message.content;
 
-      // Generate audio with ElevenLabs
-      const elevenResponse = await fetch("https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM", {
+      // Generate audio with ElevenLabs using the created voice
+      const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
         method: "POST",
         headers: {
           "xi-api-key": ELEVEN_API_KEY,
@@ -209,6 +245,50 @@ Respond naturally as this person would, incorporating these traits into your com
     } catch (error) {
       console.error("AI response error:", error);
       res.status(500).json({ error: "Failed to generate AI response" });
+    }
+  });
+
+  // Admin routes
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      // Simple password protection - in production use proper auth
+      const adminPassword = req.headers.authorization;
+      if (adminPassword !== "Bearer admin123") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const users = await storage.getAllUsers();
+      // Remove passwords from response
+      const sanitizedUsers = users.map(({ password, ...user }) => user);
+      res.json(sanitizedUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/credits", async (req, res) => {
+    try {
+      const adminPassword = req.headers.authorization;
+      if (adminPassword !== "Bearer admin123") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userId = parseInt(req.params.id);
+      const { credits } = req.body;
+      
+      if (typeof credits !== 'number' || credits < 0) {
+        return res.status(400).json({ error: "Invalid credits amount" });
+      }
+
+      const updatedUser = await storage.updateUserCredits(userId, credits);
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { password, ...sanitizedUser } = updatedUser;
+      res.json(sanitizedUser);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update credits" });
     }
   });
 
