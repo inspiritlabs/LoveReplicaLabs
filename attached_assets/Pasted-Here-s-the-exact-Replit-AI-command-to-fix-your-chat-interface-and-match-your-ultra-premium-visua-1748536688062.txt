@@ -1,0 +1,77 @@
+Here’s the exact **Replit AI command** to fix your chat interface and match your ultra-premium visual expectations (Apple-level polish):
+
+---
+
+### 🧠 REPLIT AI COMMAND — FIX THE CHAT, MAKE IT BEAUTIFUL
+
+---
+
+The current **chat interface looks bad** — too boxy, not premium.
+
+Here’s what I want:
+
+---
+
+### ✅ Chat UI Redesign
+
+1. **Full screen chat layout**
+
+   * Entire screen should be the chat interface
+   * Seamless, immersive, minimal layout like **Apple Messages + Apple Intelligence**
+
+2. **Visual blending**
+
+   * Use glassmorphism: `backdrop-blur`, gradients, depth
+   * Elements should blend into background, not sit in white/gray boxes
+
+3. **Sender identity**
+
+   * Use the name from the form ("Name" input) as the user identity
+   * Show it above their messages or subtly on hover
+
+---
+
+### 🖼️ Floating Photos in Chat Background
+
+4. **Let users upload photos**
+
+   * Add image upload below personality/memory form
+   * Store these in an array
+
+5. **In the chat panel background**, animate these photos:
+
+   * **Float in and out**, **scale subtly**, **tilt gently**
+   * Photos should **roll through randomly**
+   * Apply a **subtle glowing rainbow border** like Apple’s Intelligence animations:
+
+     ```css
+     border: 2px solid;
+     border-image: linear-gradient(90deg, #a78bfa, #f472b6, #2dd4bf, #60a5fa) 1;
+     border-radius: 16px;
+     filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+     ```
+
+6. Background photos must **not be clickable** or block chat interaction
+
+   * Render photos behind chat bubbles (z-index -10)
+   * Animate with `@keyframes float`, `transform: rotate/scale`, `opacity` transitions
+
+---
+
+### 🔊 Voice Visualizer Overlay
+
+7. When AI voice is speaking:
+
+   * Overlay a **waveform or glow effect** behind chat bubbles
+   * Use `.audio-wave-bar` animation as subtle ambient movement
+
+---
+
+🎯 Final result:
+
+* Chat is full-screen, glassy, fluid, premium
+* Background floats photos with dynamic glow
+* You + AI chat naturally overlaid on top
+* Voice playback triggers visual feedback
+
+Let me know when complete. This is **not optional polish** — it’s the core product feel.

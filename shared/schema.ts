@@ -21,6 +21,8 @@ export const replicas = pgTable("replicas", {
   personalityDescription: text("personality_description"),
   personalityTraits: jsonb("personality_traits"),
   memories: jsonb("memories"),
+  photos: jsonb("photos").$type<Array<string>>(),
+  userName: text("user_name"),
   isGenerated: boolean("is_generated").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
