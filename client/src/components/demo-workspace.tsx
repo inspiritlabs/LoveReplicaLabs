@@ -5,6 +5,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useInView } from "react-intersection-observer"
 import { Upload, Play, Pause, Send, Trash2, Plus, X, ThumbsUp, ThumbsDown, RefreshCw } from "lucide-react"
+import ImmersiveChat from "./immersive-chat"
 
 // TypeScript types
 type Role = "system" | "user" | "assistant"
@@ -49,6 +50,8 @@ interface DemoWorkspaceProps {
 }
 
 export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
+  const [showImmersiveChat, setShowImmersiveChat] = useState(false);
+  const [selectedReplica, setSelectedReplica] = useState<any>(null);
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
@@ -880,6 +883,15 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                       <span className="text-sm text-gray-400">Messages:</span>
                       <span className="text-sm font-medium text-purple-400">{messagesRemaining}</span>
                       <button
+                        onClick={() => {
+                          setSelectedReplica(currentReplica);
+                          setShowImmersiveChat(true);
+                        }}
+                        className="primary-button px-4 py-2 rounded-lg text-white text-sm"
+                      >
+                        Full Screen
+                      </button>
+                      <button
                         onClick={resetConversation}
                         className="secondary-button p-2 rounded-lg text-white"
                       >
@@ -1094,6 +1106,15 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Immersive Chat Overlay */}
+        {showImmersiveChat && selectedReplica && (
+          <ImmersiveChat
+            replica={selectedReplica}
+            user={user}
+            onBack={() => setShowImmersiveChat(false)}
+          />
         )}
       </div>
     </section>
