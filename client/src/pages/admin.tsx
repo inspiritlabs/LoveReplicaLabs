@@ -28,12 +28,28 @@ interface Replica {
   createdAt: string;
 }
 
+interface AdminStats {
+  totalUsers: number;
+  totalReplicas: number;
+  totalMessages: number;
+  totalCreditsUsed: number;
+  avgMessagesPerUser: number;
+  recentActivity: Array<{
+    type: string;
+    content: string;
+    role: string;
+    userEmail: string;
+    replicaName: string;
+    createdAt: string;
+  }>;
+}
+
 export default function Admin() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [editingUser, setEditingUser] = useState<number | null>(null);
   const [newCredits, setNewCredits] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "chats" | "voices">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "chats" | "voices" | "stats">("users");
   const queryClient = useQueryClient();
 
   const { data: users, isLoading } = useQuery({
@@ -76,6 +92,20 @@ export default function Admin() {
       return response.json() as Promise<Replica[]>;
     },
     enabled: isAuthenticated && activeTab === "voices",
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ["/api/admin/stats"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/stats", {
+        headers: {
+          "Authorization": `Bearer ${password}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json() as Promise<AdminStats>;
+    },
+    enabled: isAuthenticated && activeTab === "stats",
   });
 
   const updateCreditsMutation = useMutation({
@@ -163,6 +193,7 @@ export default function Admin() {
         <div className="flex gap-4 mb-8">
           {[
             { key: "users", label: "Users & Credits" },
+            { key: "stats", label: "Statistics" },
             { key: "chats", label: "Chat History" },
             { key: "voices", label: "Voice Uploads" }
           ].map(tab => (
@@ -306,6 +337,112 @@ export default function Admin() {
               </div>
             ) : (
               <div className="text-center py-8 text-gray-400">No chat messages found</div>
+            )}
+          </div>
+        )}
+
+        {/* Statistics Tab */}
+        {activeTab === "stats" && (
+          <div className="glass-card rounded-xl p-8">
+            <h2 className="text-2xl font-semibold mb-6">System Statistics</h2>
+            
+            {stats ? (
+              <div className="space-y-6">
+                {/* Overview Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-black/20 rounded-lg p-4 border border-white/10">
+                    <div className="text-2xl font-bold text-blue-400">{stats.totalUsers}</div>
+                    <div className="text-sm text-gray-400">Total Users</div>
+                  </div>
+                  <div className="bg-black/20 rounded-lg p-4 border border-white/10">
+                    <div className="text-2xl font-bold text-purple-400">{stats.totalReplicas}</div>
+                    <div className="text-sm text-gray-400">Voice Replicas</div>
+                  </div>
+                  <div className="bg-black/20 rounded-lg p-4 border border-white/10">
+                    <div className="text-2xl font-bold text-green-400">{stats.totalMessages}</div>
+                    <div className="text-sm text-gray-400">Total Messages</div>
+                  </div>
+                  <div className="bg-black/20 rounded-lg p-4 border border-white/10">
+                    <div className="text-2xl font-bold text-orange-400">{stats.totalCreditsUsed}</div>
+                    <div className="text-sm text-gray-400">Credits Used</div>
+                  </div>
+                </div>
+
+                {/* Analytics */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-black/20 rounded-lg p-6 border border-white/10">
+                    <h3 className="text-lg font-semibold mb-4">Usage Analytics</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Avg Messages/User:</span>
+                        <span className="text-white font-medium">{stats.avgMessagesPerUser}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Credit Usage Rate:</span>
+                        <span className="text-white font-medium">
+                          {((stats.totalCreditsUsed / (stats.totalUsers * 10)) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Active Replicas:</span>
+                        <span className="text-white font-medium">{stats.totalReplicas}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-black/20 rounded-lg p-6 border border-white/10">
+                    <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {stats.recentActivity.map((activity, index) => (
+                        <div key={index} className="flex items-start gap-3 p-2 bg-black/10 rounded">
+                          <div className={`w-2 h-2 rounded-full mt-2 ${
+                            activity.role === 'user' ? 'bg-blue-400' : 'bg-purple-400'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs text-gray-400">
+                              {activity.userEmail} → {activity.replicaName}
+                            </div>
+                            <div className="text-sm text-white truncate">
+                              {activity.content}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(activity.createdAt).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Voice Creation Status */}
+                <div className="bg-black/20 rounded-lg p-6 border border-white/10">
+                  <h3 className="text-lg font-semibold mb-4">Voice Creation Health</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-green-400">
+                        {replicas?.filter(r => r.voiceId).length || 0}
+                      </div>
+                      <div className="text-sm text-gray-400">Successful Voices</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-red-400">
+                        {replicas?.filter(r => !r.voiceId).length || 0}
+                      </div>
+                      <div className="text-sm text-gray-400">Failed Voices</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-yellow-400">
+                        {replicas?.length ? 
+                          ((replicas.filter(r => r.voiceId).length / replicas.length) * 100).toFixed(1) : 0}%
+                      </div>
+                      <div className="text-sm text-gray-400">Success Rate</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">Loading statistics...</div>
             )}
           </div>
         )}
