@@ -122,30 +122,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Audio file required" });
       }
 
+      if (!ELEVEN_API_KEY) {
+        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+      }
+
       // Convert base64 to buffer
-      const audioBuffer = Buffer.from(audioFile.split(',')[1], 'base64');
+      const base64Data = audioFile.includes(',') ? audioFile.split(',')[1] : audioFile;
+      const audioBuffer = Buffer.from(base64Data, 'base64');
       
+      // Validate file size (max 6MB)
+      if (audioBuffer.length > 6 * 1024 * 1024) {
+        return res.status(400).json({ error: "Audio file too large. Maximum 6MB allowed." });
+      }
+
       const formData = new FormData();
       const blob = new Blob([audioBuffer], { type: 'audio/wav' });
       formData.append("files", blob, "voice.wav");
-      formData.append("name", name || "Instant Clone");
+      formData.append("name", name || "Voice Clone");
+      formData.append("description", `Voice clone created for ${name || "user"}`);
 
       const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
         method: "POST",
-        headers: { "xi-api-key": ELEVEN_API_KEY },
+        headers: { 
+          "xi-api-key": ELEVEN_API_KEY,
+        },
         body: formData
       });
 
+      const responseText = await response.text();
+      console.log("ElevenLabs response:", response.status, responseText);
+
       if (!response.ok) {
-        throw new Error("ElevenLabs voice creation failed");
+        let errorMessage = "Voice creation failed";
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.detail?.message || errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = responseText || errorMessage;
+        }
+        return res.status(response.status).json({ error: errorMessage });
       }
 
-      const data = await response.json();
+      const data = JSON.parse(responseText);
       res.json({ voiceId: data.voice_id });
 
     } catch (error) {
       console.error("Voice creation error:", error);
-      res.status(500).json({ error: "Failed to create voice" });
+      res.status(500).json({ error: error.message || "Failed to create voice" });
     }
   });
 
@@ -339,6 +362,20 @@ Respond naturally as this person would, incorporating these traits into your com
       res.json(allReplicas);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch replicas" });
+    }
+  });
+
+  app.get("/api/admin/stats", async (req, res) => {
+    try {
+      const adminPassword = req.headers.authorization;
+      if (adminPassword !== "Bearer admin123") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const stats = await storage.getAdminStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch statistics" });
     }
   });
 
