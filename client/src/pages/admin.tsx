@@ -264,8 +264,89 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+
+        {/* Chats Tab */}
+        {activeTab === "chats" && (
+          <div className="glass-card rounded-xl p-8">
+            <h2 className="text-2xl font-semibold mb-6">Chat History</h2>
+            
+            {chats && chats.length > 0 ? (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {chats.map((chat) => (
+                  <div key={chat.id} className="p-4 bg-black/20 rounded-lg border border-white/10">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="text-sm text-gray-400">
+                        {chat.userEmail} → {chat.replicaName}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {new Date(chat.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="mb-2">
+                      <span className={`inline-block px-2 py-1 rounded text-xs ${
+                        chat.role === 'user' ? 'bg-blue-500/20 text-blue-300' : 'bg-purple-500/20 text-purple-300'
+                      }`}>
+                        {chat.role}
+                      </span>
+                    </div>
+                    <div className="text-white">{chat.content}</div>
+                    {chat.audioUrl && (
+                      <div className="mt-2">
+                        <audio controls className="w-full">
+                          <source src={chat.audioUrl} type="audio/mpeg" />
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">No chat messages found</div>
+            )}
+          </div>
+        )}
+
+        {/* Voices Tab */}
+        {activeTab === "voices" && (
+          <div className="glass-card rounded-xl p-8">
+            <h2 className="text-2xl font-semibold mb-6">Voice Uploads</h2>
+            
+            {replicas && replicas.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {replicas.map((replica) => (
+                  <div key={replica.id} className="p-4 bg-black/20 rounded-lg border border-white/10">
+                    <div className="text-lg font-semibold text-white mb-2">{replica.name}</div>
+                    <div className="text-sm text-gray-400 mb-3">
+                      Created by: {replica.userEmail}
+                    </div>
+                    <div className="text-xs text-gray-500 mb-3">
+                      {new Date(replica.createdAt).toLocaleString()}
+                    </div>
+                    {replica.audioUrl && (
+                      <div>
+                        <audio controls className="w-full">
+                          <source src={replica.audioUrl} type="audio/mpeg" />
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    )}
+                    {replica.voiceId && (
+                      <div className="mt-2 text-xs text-green-400">
+                        Voice ID: {replica.voiceId}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">No voice uploads found</div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
