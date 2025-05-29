@@ -113,13 +113,12 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       {uploadedPhotos.map((photo, index) => (
         <div
           key={index}
-          className="absolute pointer-events-none animate-float opacity-30 hover:opacity-60 transition-opacity duration-500"
+          className="absolute pointer-events-none transition-opacity duration-700"
           style={{
             left: `${Math.random() * 70 + 15}%`,
             top: `${Math.random() * 70 + 15}%`,
-            transform: `rotate(${Math.random() * 20 - 10}deg) scale(${0.8 + Math.random() * 0.4})`,
-            animationDelay: `${Math.random() * 3}s`,
-            animationDuration: `${5 + Math.random() * 3}s`,
+            animation: `float ${20 + Math.random() * 10}s ease-in-out infinite alternate`,
+            animationDelay: `${Math.random() * 5}s`,
           }}
         >
           <div 
@@ -192,11 +191,18 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
                   </div>
                 )}
                 <div
-                  className={`relative ${
-                    message.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"
-                  } ${isAudioPlaying && message.role === "assistant" ? "animate-pulse" : ""}`}
+                  className={`relative rounded-2xl px-5 py-3 transition-all duration-300 hover:scale-[1.02] ${
+                    message.role === "user" 
+                      ? "bg-white/5 backdrop-blur-md ml-auto" 
+                      : "bg-black/10 backdrop-blur-md"
+                  }`}
+                  style={{
+                    boxShadow: message.role === "user" 
+                      ? "0 8px 32px rgba(255, 255, 255, 0.1)" 
+                      : "0 8px 32px rgba(0, 0, 0, 0.2)",
+                  }}
                 >
-                  <p className="text-white leading-relaxed">{message.content}</p>
+                  <p className="text-white leading-relaxed font-medium">{message.content}</p>
                   {message.audioUrl && (
                     <div className="mt-3 flex items-center gap-2">
                       <div className="flex gap-1">

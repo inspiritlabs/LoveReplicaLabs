@@ -249,14 +249,11 @@
   }
 
   @keyframes float {
-    0%, 100% { 
-      transform: translateY(0px) rotate(0deg);
-      opacity: 0.3;
-    }
-    50% { 
-      transform: translateY(-15px) rotate(3deg);
-      opacity: 0.5;
-    }
+    0%   { transform: translateY(0px) rotate(0deg) scale(1); opacity: 0.9; }
+    25%  { transform: translateY(-8px) rotate(0.5deg) scale(1.01); opacity: 1; }
+    50%  { transform: translateY(-20px) rotate(1deg) scale(1.02); opacity: 1; }
+    75%  { transform: translateY(-12px) rotate(0.5deg) scale(1.01); opacity: 0.95; }
+    100% { transform: translateY(10px) rotate(-1deg) scale(0.98); opacity: 0.85; }
   }
   
   .message-bubble {
