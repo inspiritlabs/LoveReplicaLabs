@@ -536,14 +536,16 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <Upload className="mx-auto text-4xl text-gray-400 mb-4 w-12 h-12" />
-                      <p className="text-lg mb-2">Drop audio file here or click to browse</p>
-                      <p className="text-sm text-gray-400">Supports WAV, MP3, M4A • 10-60 seconds • Max 6MB</p>
+                      <p className="text-lg mb-2">Drop files here or click to browse</p>
+                      <p className="text-sm text-gray-400">Audio: WAV, MP3, M4A • 10-60 seconds • Max 6MB</p>
+                      <p className="text-sm text-gray-400">Photos: JPG, PNG • For chat backgrounds</p>
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept="audio/*"
+                        accept="audio/*,image/*"
                         onChange={handleFileSelect}
                         className="hidden"
+                        multiple
                       />
                     </div>
 
@@ -605,6 +607,30 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                             className="hidden"
                           />
                         )}
+                      </div>
+                    )}
+
+                    {/* Photos Preview */}
+                    {photos.length > 0 && (
+                      <div className="mt-4 p-4 bg-black/30 rounded-lg">
+                        <h4 className="text-sm font-medium text-white mb-3">Uploaded Photos ({photos.length})</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {photos.map((photo, index) => (
+                            <div key={index} className="relative">
+                              <img
+                                src={photo}
+                                alt={`Photo ${index + 1}`}
+                                className="w-16 h-16 object-cover rounded-lg border border-white/20"
+                              />
+                              <button
+                                onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}
+                                className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-red-600"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 
