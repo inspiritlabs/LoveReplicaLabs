@@ -111,17 +111,33 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
     <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-cyan-900/20 backdrop-blur-3xl">
       {/* Floating Photos Background */}
       {uploadedPhotos.map((photo, index) => (
-        <img
+        <div
           key={index}
-          src={photo}
-          alt=""
-          className="floating-photo w-32 h-32"
+          className="absolute pointer-events-none animate-float opacity-30 hover:opacity-60 transition-opacity duration-500"
           style={{
-            ...getRandomPosition(index),
-            animationDelay: `${index * 1.5}s`,
-            animationDuration: `${8 + index}s`,
+            left: `${Math.random() * 70 + 15}%`,
+            top: `${Math.random() * 70 + 15}%`,
+            transform: `rotate(${Math.random() * 20 - 10}deg) scale(${0.8 + Math.random() * 0.4})`,
+            animationDelay: `${Math.random() * 3}s`,
+            animationDuration: `${5 + Math.random() * 3}s`,
           }}
-        />
+        >
+          <div 
+            className="relative rounded-xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(45deg, #ff006e, #8338ec, #3a86ff, #06ffa5, #ffbe0b, #ff006e)',
+              backgroundSize: '300% 300%',
+              animation: 'rainbow 3s ease infinite',
+              padding: '2px',
+            }}
+          >
+            <img
+              src={photo}
+              alt="Memory"
+              className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg"
+            />
+          </div>
+        </div>
       ))}
 
       {/* Header */}
