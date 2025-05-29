@@ -7,6 +7,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  updateUserCredits(userId: number, credits: number): Promise<User | undefined>;
   
   // Replica methods
   createReplica(replica: InsertReplica): Promise<Replica>;
@@ -68,6 +70,19 @@ export class DatabaseStorage implements IStorage {
 
   async getReplicaMessages(replicaId: number): Promise<ChatMessage[]> {
     return await db.select().from(chatMessages).where(eq(chatMessages.replicaId, replicaId));
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async updateUserCredits(userId: number, credits: number): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ credits })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser || undefined;
   }
 }
 
