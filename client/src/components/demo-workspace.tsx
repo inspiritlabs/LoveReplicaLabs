@@ -418,6 +418,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           personalityTraits,
           personalityDescription,
           voiceId,
+          userId: user.id,
         }),
       })
 
