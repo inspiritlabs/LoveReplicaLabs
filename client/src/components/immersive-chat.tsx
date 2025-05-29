@@ -39,11 +39,14 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
-      if (!response.ok) throw new Error("Failed to send message");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send message");
+      }
       return response.json();
     },
     onSuccess: (data) => {
-      setMessages(prev => [...prev, data.aiMessage]);
+      setMessages(prev => [...prev, data.userMessage, data.aiMessage]);
       if (data.aiMessage.audioUrl) {
         playAudio(data.aiMessage.audioUrl);
       }

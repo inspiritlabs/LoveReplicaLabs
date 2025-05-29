@@ -315,37 +315,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     }))
   }
 
-  // Open memory modal
-  const openMemoryModal = () => {
-    setIsAddingMemory(true)
-    setNewMemory({ title: "", description: "", imageUrl: "" })
-  }
 
-  // Close memory modal
-  const closeMemoryModal = () => {
-    setIsAddingMemory(false)
-  }
-
-  // Add memory
-  const addMemory = () => {
-    if (newMemory.title.trim() === "" || newMemory.description.trim() === "") return
-    if (memories.length >= 10) return
-
-    const memory: Memory = {
-      id: `memory-${Date.now()}`,
-      title: newMemory.title,
-      description: newMemory.description,
-      imageUrl: newMemory.imageUrl || undefined,
-    }
-
-    setMemories((prev) => [...prev, memory])
-    closeMemoryModal()
-  }
-
-  // Delete memory
-  const deleteMemory = (id: string) => {
-    setMemories((prev) => prev.filter((memory) => memory.id !== id))
-  }
 
   // Generate demo
   const generateDemo = async () => {
@@ -366,7 +336,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           voiceId: voiceId,
           personalityDescription: personalityDescription,
           personalityTraits: personalityTraits,
-          memories: memories,
+          photos: photos,
           isGenerated: false,
         }),
       })
@@ -704,59 +674,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                     </div>
                   </div>
 
-                  {/* Memories Section */}
-                  <div className="glass-card rounded-xl p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-semibold flex items-center gap-3">
-                        <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Special Memories
-                      </h3>
-                      <button
-                        onClick={openMemoryModal}
-                        className="secondary-button px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2"
-                        disabled={memories.length >= 10}
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add Memory
-                      </button>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {memories.length === 0 ? (
-                        <div className="col-span-full text-center py-8 text-gray-400">
-                          <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <p>No memories added yet</p>
-                          <p className="text-sm">Add photos and descriptions of special moments</p>
-                        </div>
-                      ) : (
-                        memories.map((memory) => (
-                          <div key={memory.id} className="memory-card rounded-lg p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-medium">{memory.title}</h4>
-                              <button
-                                onClick={() => deleteMemory(memory.id)}
-                                className="text-gray-400 hover:text-red-400"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <p className="text-sm text-gray-400">{memory.description}</p>
-                            {memory.imageUrl && (
-                              <img
-                                src={memory.imageUrl}
-                                alt={memory.title}
-                                className="w-full h-32 object-cover rounded mt-2"
-                              />
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
 
                   {/* Consent and Generate Button */}
                   <div className="text-center space-y-4">
@@ -1017,69 +935,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           </div>
         </div>
 
-        {/* Memory Modal */}
-        {isAddingMemory && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="premium-card rounded-xl p-6 w-full max-w-md">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold">Add Memory</h3>
-                <button onClick={closeMemoryModal} className="text-gray-400 hover:text-white">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Title</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Beach vacation 2019"
-                    value={newMemory.title}
-                    onChange={(e) => setNewMemory((prev) => ({ ...prev, title: e.target.value }))}
-                    className="w-full p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
-                  <textarea
-                    placeholder="Describe this special memory..."
-                    value={newMemory.description}
-                    onChange={(e) => setNewMemory((prev) => ({ ...prev, description: e.target.value }))}
-                    className="w-full h-24 p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:border-purple-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Image URL (optional)</label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={newMemory.imageUrl}
-                    onChange={(e) => setNewMemory((prev) => ({ ...prev, imageUrl: e.target.value }))}
-                    className="w-full p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={closeMemoryModal}
-                    className="secondary-button flex-1 py-3 rounded-lg font-medium text-white"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={addMemory}
-                    disabled={!newMemory.title.trim() || !newMemory.description.trim()}
-                    className="primary-button flex-1 py-3 rounded-lg font-medium text-white disabled:opacity-50"
-                  >
-                    Add Memory
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Upgrade Overlay */}
         {showUpgradeOverlay && (
