@@ -19,12 +19,7 @@ interface Message {
   feedbackText?: string
 }
 
-interface Memory {
-  id: string
-  title: string
-  description: string
-  imageUrl?: string
-}
+
 
 interface PersonalityTraits {
   warmth: number
@@ -71,9 +66,8 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     assertiveness: 5,
     energy: 5,
   })
-  const [memories, setMemories] = useState<Memory[]>([])
-  const [isAddingMemory, setIsAddingMemory] = useState(false)
-  const [newMemory, setNewMemory] = useState({ title: "", description: "", imageUrl: "" })
+  const [photos, setPhotos] = useState<Array<{ id: string; url: string }>>([])
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [consentChecked, setConsentChecked] = useState(false)
 
   // Upload state
@@ -160,6 +154,25 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
       if (interval) clearInterval(interval)
     }
   }, [isGenerating, generationTime])
+
+  // Handle photo upload
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files) return
+
+    Array.from(files).forEach(file => {
+      if (file.type.startsWith('image/')) {
+        setIsUploadingPhoto(true)
+        const url = URL.createObjectURL(file)
+        const newPhoto = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          url: url
+        }
+        setPhotos(prev => [...prev, newPhoto])
+        setIsUploadingPhoto(false)
+      }
+    })
+  }
 
   // Check if form is valid
   const isFormValid = () => {
@@ -310,37 +323,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     }))
   }
 
-  // Open memory modal
-  const openMemoryModal = () => {
-    setIsAddingMemory(true)
-    setNewMemory({ title: "", description: "", imageUrl: "" })
-  }
 
-  // Close memory modal
-  const closeMemoryModal = () => {
-    setIsAddingMemory(false)
-  }
-
-  // Add memory
-  const addMemory = () => {
-    if (newMemory.title.trim() === "" || newMemory.description.trim() === "") return
-    if (memories.length >= 10) return
-
-    const memory: Memory = {
-      id: `memory-${Date.now()}`,
-      title: newMemory.title,
-      description: newMemory.description,
-      imageUrl: newMemory.imageUrl || undefined,
-    }
-
-    setMemories((prev) => [...prev, memory])
-    closeMemoryModal()
-  }
-
-  // Delete memory
-  const deleteMemory = (id: string) => {
-    setMemories((prev) => prev.filter((memory) => memory.id !== id))
-  }
 
   // Generate demo
   const generateDemo = async () => {
@@ -361,7 +344,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           voiceId: voiceId,
           personalityDescription: personalityDescription,
           personalityTraits: personalityTraits,
-          memories: memories,
+          photos: photos,
           isGenerated: false,
         }),
       })
