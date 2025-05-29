@@ -77,6 +77,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [voiceId, setVoiceId] = useState<string | null>(null)
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false)
@@ -162,6 +163,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     return (
       name.trim() !== "" &&
       audioFile !== null &&
+      voiceId !== null &&
       personalityDescription.length >= 120 &&
       Object.values(personalityTraits).some((value) => value !== 5) &&
       consentChecked
@@ -233,26 +235,39 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
         return
       }
 
-      // Start upload simulation
+      // Start upload and voice creation
       setIsUploading(true)
 
-      // Simulate upload progress
-      let progress = 0
-      const interval = setInterval(() => {
-        if (!isMounted.current) {
-          clearInterval(interval)
-          return
-        }
+      // Create voice with ElevenLabs
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          const audioBase64 = reader.result as string
+          
+          const response = await fetch("/api/voice/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              audioFile: audioBase64,
+              name: name || "Custom Voice"
+            })
+          })
 
-        progress += 10
-        setUploadProgress(progress)
-
-        if (progress >= 100) {
-          clearInterval(interval)
+          if (response.ok) {
+            const data = await response.json()
+            setVoiceId(data.voiceId)
+            setUploadProgress(100)
+          } else {
+            throw new Error("Voice creation failed")
+          }
+        } catch (error) {
+          console.error("Voice creation error:", error)
+          setUploadError("Failed to create voice. Please try again.")
+        } finally {
           setIsUploading(false)
-          setUploadProgress(100)
         }
-      }, 200)
+      }
+      reader.readAsDataURL(file)
     }
 
     audio.onerror = () => {
@@ -340,6 +355,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           userId: user.id,
           name: name,
           audioUrl: audioUrl,
+          voiceId: voiceId,
           personalityDescription: personalityDescription,
           personalityTraits: personalityTraits,
           memories: memories,
@@ -401,6 +417,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           replicaId: currentReplica.id,
           personalityTraits,
           personalityDescription,
+          voiceId,
         }),
       })
 

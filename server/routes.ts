@@ -152,7 +152,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Chat endpoint with OpenAI and ElevenLabs
   app.post("/api/chat/ai-response", async (req, res) => {
     try {
-      const { message, replicaId, personalityTraits, personalityDescription, voiceId } = req.body;
+      const { message, replicaId, personalityTraits, personalityDescription, voiceId, userId } = req.body;
+
+      // Check user credits
+      const user = await storage.getUser(userId);
+      if (!user || (user.credits || 0) <= 0) {
+        return res.status(402).json({ error: "Insufficient credits" });
+      }
 
       // Build system prompt based on personality
       const systemPrompt = `You are a digital replica with the following personality:
@@ -236,10 +242,15 @@ Respond naturally as this person would, incorporating these traits into your com
         feedbackText: null,
       });
 
+      // Deduct 1 credit after successful response
+      const newCredits = (user.credits || 0) - 1;
+      await storage.updateUserCredits(userId, newCredits);
+
       res.json({
         message: aiMessage,
         audioUrl: `data:audio/mpeg;base64,${audioBase64}`,
         messageId: assistantMessage.id,
+        creditsRemaining: newCredits,
       });
 
     } catch (error) {
