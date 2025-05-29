@@ -1,6 +1,6 @@
 import { users, replicas, chatMessages, type User, type InsertUser, type Replica, type InsertReplica, type ChatMessage, type InsertChatMessage } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -19,6 +19,16 @@ export interface IStorage {
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getReplicaMessages(replicaId: number): Promise<ChatMessage[]>;
   getAllChatMessages(): Promise<(ChatMessage & { replicaName: string; userEmail: string })[]>;
+  
+  // Admin statistics
+  getAdminStats(): Promise<{
+    totalUsers: number;
+    totalReplicas: number;
+    totalMessages: number;
+    totalCreditsUsed: number;
+    avgMessagesPerUser: number;
+    recentActivity: any[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -106,6 +116,66 @@ export class DatabaseStorage implements IStorage {
       .orderBy(chatMessages.createdAt);
     
     return result;
+  }
+
+  async getAdminStats(): Promise<{
+    totalUsers: number;
+    totalReplicas: number;
+    totalMessages: number;
+    totalCreditsUsed: number;
+    avgMessagesPerUser: number;
+    recentActivity: any[];
+  }> {
+    const allUsers = await db.select().from(users);
+    const allReplicas = await db.select().from(replicas);
+    const allMessages = await db.select().from(chatMessages);
+    
+    const totalUsers = allUsers.length;
+    const totalReplicas = allReplicas.length;
+    const totalMessages = allMessages.length;
+    
+    const totalCreditsRemaining = allUsers.reduce((sum, user) => sum + (user.credits || 0), 0);
+    const totalCreditsUsed = (totalUsers * 10) - totalCreditsRemaining;
+    
+    const avgMessagesPerUser = totalUsers > 0 ? 
+      Math.round((totalMessages / totalUsers) * 100) / 100 : 0;
+
+    // Get recent activity (last 10 messages)
+    const recentMessages = await db
+      .select({
+        content: chatMessages.content,
+        role: chatMessages.role,
+        createdAt: chatMessages.createdAt,
+        replicaId: chatMessages.replicaId,
+      })
+      .from(chatMessages)
+      .orderBy(chatMessages.createdAt)
+      .limit(10);
+
+    // Get replica names and user emails for recent messages
+    const recentActivity = [];
+    for (const message of recentMessages) {
+      const replica = allReplicas.find(r => r.id === message.replicaId);
+      const user = replica ? allUsers.find(u => u.id === replica.userId) : null;
+      
+      recentActivity.push({
+        type: 'message',
+        content: message.content.substring(0, 50) + '...',
+        role: message.role,
+        userEmail: user?.email || 'Unknown',
+        replicaName: replica?.name || 'Unknown',
+        createdAt: message.createdAt,
+      });
+    }
+
+    return {
+      totalUsers,
+      totalReplicas,
+      totalMessages,
+      totalCreditsUsed,
+      avgMessagesPerUser,
+      recentActivity: recentActivity.reverse(), // Most recent first
+    };
   }
 }
 
