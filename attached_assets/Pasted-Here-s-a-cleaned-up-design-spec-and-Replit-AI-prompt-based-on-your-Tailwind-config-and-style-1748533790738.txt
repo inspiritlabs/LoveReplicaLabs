@@ -1,0 +1,131 @@
+Here's a **cleaned-up design spec** and Replit AI **prompt** based on your Tailwind config and style definitions:
+
+---
+
+### ✅ EXTRACTED DESIGN ELEMENTS FOR INSPIRT LABS
+
+---
+
+#### 🌌 Starry Background / Page Background
+
+* Use class: `deep-space-bg`
+* Defined as:
+
+  ```css
+  background: radial-gradient(circle at center, #0f172a, #020617);
+  ```
+* It gives a **deep, galactic, starry night effect**, perfect for an emotional, immersive product.
+
+---
+
+#### 🌫 Background Color
+
+* Controlled by Tailwind `@apply bg-background text-foreground`
+* Which resolves to:
+
+  ```css
+  --background: hsl(0, 0%, 3.9%); /* #0a0a0a nearly black */
+  --foreground: hsl(0, 0%, 98%);  /* near white text */
+  ```
+
+Use:
+
+```html
+<body class="bg-background text-foreground"> ... </body>
+```
+
+---
+
+#### 🚀 Premium Buttons
+
+Use these button classes:
+
+* `.primary-button`
+
+  * Glowy gradient border, blur glass effect
+  * Animates on hover (glow + swipe effect)
+* `.secondary-button`
+
+  * Clean dark-glass hover style
+
+For **Send** or **Generate** buttons:
+
+```html
+<button class="primary-button">Send</button>
+```
+
+For subtle actions like “Cancel” or “Add Memory”:
+
+```html
+<button class="secondary-button">Add Memory</button>
+```
+
+---
+
+#### 📋 Ethereal Login Page Spec
+
+**Structure:**
+
+* Centered card using `glass-card`
+* Subtle glowing title using `.cosmic-glow`
+* Login input styled with `bg-black/30 border border-white/10`
+* No logos, just elegant text and a gentle CTA like `Enter` or `Begin Connection`
+
+---
+
+#### 💬 Chat + Upload + Trait Panel
+
+Panel styling:
+
+* Use `.panel` for spacing and layout
+* Use `.glass-card` or `.premium-card` for UI sections
+* Background: `deep-space-bg`
+
+Components:
+
+* Upload: drag & drop zone, classed with `border-white/20 bg-black/40`
+* Trait sliders: styled range sliders with hover descriptions
+* Chat: bubble layout, voice wave playback using `.audio-wave` bars
+* Messages: animate `.audio-wave-bar` for active response
+* Input field: `bg-black/50 border border-gray-700 text-white rounded p-2`
+
+---
+
+### 🧠 FULL REPLIT AI PROMPT
+
+Paste this into Replit AI:
+
+---
+
+You are helping me build a premium full-stack webapp for **Inspirt Labs**.
+Our goal is to let users **upload a voice clip**, write about a loved one’s **personality**, and **chat with a voice-generated replica**.
+
+### 🎨 Frontend Design (Tailwind + React):
+
+* **Starry Background**: Use `.deep-space-bg` with `radial-gradient(circle at center, #0f172a, #020617)`
+* **Dark Theme**: Base colors use `--background: #0a0a0a`, `--foreground: #fafafa`
+* **UI Panels**: Use `.glass-card` or `.premium-card` for every section (upload, chat, traits)
+* **Buttons**: Use `.primary-button` for main actions and `.secondary-button` for extras. All buttons should animate and glow.
+* **Send Button**: Must feel premium, click feedback, no lag
+* **No dead buttons** — all buttons must be reactive, changing state or showing loaders
+
+### 💬 Demo Panel Requirements:
+
+* Audio Upload → Voice validated (10–60s), drag & drop
+* Persona Description → `textarea`, live character count
+* Trait Sliders → 6 traits (warmth, humor, etc.), dynamic
+* Chat → full interface with bubbles, AI reply with ElevenLabs voice
+* Playback → animated `.audio-wave-bar` while voice plays
+* API code will be provided separately. You don’t need to handle backend API, just **build the complete UI + states**.
+
+### 🔐 Login Page Spec:
+
+* Extremely **ethereal and minimal**
+* Centered card with `.glass-card`
+* Background: `deep-space-bg`
+* Only input: "Enter your name" or "Continue"
+* Elegant `Begin` button using `.primary-button`
+
+---
+
+Let me know if you want me to code a **base version of this React layout** so Replit AI starts from that directly.

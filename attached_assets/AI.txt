@@ -1,0 +1,1031 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useRef, useEffect } from "react"
+import { useInView } from "react-intersection-observer"
+import { Upload, Play, Pause, Send, Trash2, Plus, X, ThumbsUp, ThumbsDown, RefreshCw } from "lucide-react"
+
+// TypeScript types
+type Role = "system" | "user" | "assistant"
+type TraitName = "warmth" | "humor" | "thoughtfulness" | "empathy" | "assertiveness" | "energy"
+
+interface Message {
+  role: Role
+  content: string
+  id: string
+  feedback?: "positive" | "negative" | null
+  feedbackText?: string
+}
+
+interface Memory {
+  id: string
+  title: string
+  description: string
+  imageUrl?: string
+}
+
+interface PersonalityTraits {
+  warmth: number
+  humor: number
+  thoughtfulness: number
+  empathy: number
+  assertiveness: number
+  energy: number
+}
+
+const traitDescriptions: Record<TraitName, string> = {
+  warmth: "Higher warmth produces softer tone and more affectionate words",
+  humor: "Higher humor increases jokes, wordplay, and lighthearted responses",
+  thoughtfulness: "Higher thoughtfulness creates more reflective and detailed answers",
+  empathy: "Higher empathy focuses on understanding and validating emotions",
+  assertiveness: "Higher assertiveness leads to more direct and confident communication",
+  energy: "Higher energy creates more enthusiastic and animated responses",
+}
+
+export default function DemoWorkspace() {
+  const [ref, inView] = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  })
+
+  // Form state
+  const [name, setName] = useState("")
+  const [audioFile, setAudioFile] = useState<File | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
+  const [personalityDescription, setPersonalityDescription] = useState("")
+  const [personalityTraits, setPersonalityTraits] = useState<PersonalityTraits>({
+    warmth: 5,
+    humor: 5,
+    thoughtfulness: 5,
+    empathy: 5,
+    assertiveness: 5,
+    energy: 5,
+  })
+  const [memories, setMemories] = useState<Memory[]>([])
+  const [isAddingMemory, setIsAddingMemory] = useState(false)
+  const [newMemory, setNewMemory] = useState({ title: "", description: "", imageUrl: "" })
+  const [consentChecked, setConsentChecked] = useState(false)
+
+  // Upload state
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  // Generation state
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState(0)
+  const [generationTime, setGenerationTime] = useState(25)
+  const [generationError, setGenerationError] = useState<string | null>(null)
+  const [generationComplete, setGenerationComplete] = useState(false)
+
+  // Chat state
+  const [message, setMessage] = useState("")
+  const [chatMessages, setChatMessages] = useState<Message[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [messagesRemaining, setMessagesRemaining] = useState(10)
+  const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false)
+
+  // Refs
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const chatContainerRef = useRef<HTMLDivElement | null>(null)
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
+  const isMounted = useRef(false)
+
+  // Set isMounted to true when component mounts
+  useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
+
+  // Focus name input on load
+  useEffect(() => {
+    if (nameInputRef.current) {
+      nameInputRef.current.focus()
+    }
+  }, [])
+
+  // Scroll to bottom of chat when messages change
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+    }
+  }, [chatMessages])
+
+  // Initialize chat with system message when generation is complete
+  useEffect(() => {
+    if (generationComplete && chatMessages.length === 0 && isMounted.current) {
+      setChatMessages([
+        {
+          id: "system-1",
+          role: "assistant",
+          content: `Hi ${name || "there"}! I'm here to chat whenever you need me. How are you feeling today?`,
+          feedback: null,
+        },
+      ])
+    }
+  }, [generationComplete, chatMessages.length, name])
+
+  // Simulate generation countdown
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined
+
+    if (isGenerating && generationTime > 0 && isMounted.current) {
+      interval = setInterval(() => {
+        if (isMounted.current) {
+          setGenerationTime((prev) => {
+            const newTime = prev - 1
+            setGenerationProgress(((25 - newTime) / 25) * 100)
+            return newTime
+          })
+        }
+      }, 1000)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isGenerating, generationTime])
+
+  // Check if form is valid
+  const isFormValid = () => {
+    return (
+      name.trim() !== "" &&
+      audioFile !== null &&
+      personalityDescription.length >= 120 &&
+      Object.values(personalityTraits).some((value) => value !== 5) &&
+      consentChecked
+    )
+  }
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    const file = files[0]
+    handleFileValidation(file)
+  }
+
+  // Handle file drop
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0]
+      handleFileValidation(file)
+    }
+  }
+
+  // Prevent default drag behavior
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  // Validate file
+  const handleFileValidation = (file: File) => {
+    // Reset previous errors
+    setUploadError(null)
+
+    // Check file type
+    const validTypes = ["audio/wav", "audio/mpeg", "audio/mp3", "audio/x-m4a"]
+    if (!validTypes.includes(file.type)) {
+      setUploadError("Please upload a WAV, MP3, or M4A file.")
+      return
+    }
+
+    // Check file size (6MB max)
+    if (file.size > 6 * 1024 * 1024) {
+      setUploadError("File size exceeds 6MB limit.")
+      return
+    }
+
+    // Create object URL for preview
+    const url = URL.createObjectURL(file)
+
+    // Set file and URL first
+    setAudioFile(file)
+    setAudioUrl(url)
+
+    // Check audio duration
+    const audio = new Audio()
+    audio.onloadedmetadata = () => {
+      if (!isMounted.current) return
+
+      const duration = audio.duration
+      if (duration < 10 || duration > 60) {
+        setUploadError("Audio must be between 10 and 60 seconds.")
+        setAudioFile(null)
+        setAudioUrl(null)
+        URL.revokeObjectURL(url)
+        return
+      }
+
+      // Start upload simulation
+      setIsUploading(true)
+
+      // Simulate upload progress
+      let progress = 0
+      const interval = setInterval(() => {
+        if (!isMounted.current) {
+          clearInterval(interval)
+          return
+        }
+
+        progress += 10
+        setUploadProgress(progress)
+
+        if (progress >= 100) {
+          clearInterval(interval)
+          setIsUploading(false)
+          setUploadProgress(100)
+        }
+      }, 200)
+    }
+
+    audio.onerror = () => {
+      if (!isMounted.current) return
+      setUploadError("Could not process audio file. Please try another file.")
+      setAudioFile(null)
+      setAudioUrl(null)
+      URL.revokeObjectURL(url)
+    }
+
+    audio.src = url
+  }
+
+  // Toggle audio playback
+  const toggleAudioPlayback = () => {
+    if (!audioRef.current) return
+
+    if (isAudioPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+
+    setIsAudioPlaying(!isAudioPlaying)
+  }
+
+  // Handle audio ended
+  const handleAudioEnded = () => {
+    setIsAudioPlaying(false)
+  }
+
+  // Handle trait change
+  const handleTraitChange = (trait: TraitName, value: number) => {
+    setPersonalityTraits((prev) => ({
+      ...prev,
+      [trait]: value,
+    }))
+  }
+
+  // Open memory modal
+  const openMemoryModal = () => {
+    setIsAddingMemory(true)
+    setNewMemory({ title: "", description: "", imageUrl: "" })
+  }
+
+  // Close memory modal
+  const closeMemoryModal = () => {
+    setIsAddingMemory(false)
+  }
+
+  // Add memory
+  const addMemory = () => {
+    if (newMemory.title.trim() === "" || newMemory.description.trim() === "") return
+    if (memories.length >= 10) return
+
+    const memory: Memory = {
+      id: `memory-${Date.now()}`,
+      title: newMemory.title,
+      description: newMemory.description,
+      imageUrl: newMemory.imageUrl || undefined,
+    }
+
+    setMemories((prev) => [...prev, memory])
+    closeMemoryModal()
+  }
+
+  // Delete memory
+  const deleteMemory = (id: string) => {
+    setMemories((prev) => prev.filter((memory) => memory.id !== id))
+  }
+
+  // Generate demo
+  const generateDemo = () => {
+    if (!isFormValid()) return
+
+    setIsGenerating(true)
+    setGenerationError(null)
+
+    // Simulate API call with setTimeout
+    const timer = setTimeout(() => {
+      if (isMounted.current) {
+        setIsGenerating(false)
+        setGenerationComplete(true)
+      }
+    }, 25000)
+
+    // Clean up timer if component unmounts
+    return () => clearTimeout(timer)
+  }
+
+  // Send message
+  const sendMessage = () => {
+    if (!message.trim() || isProcessing || messagesRemaining <= 0) return
+
+    const newMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: message,
+      feedback: null,
+    }
+
+    setChatMessages((prev) => [...prev, newMessage])
+    setMessage("")
+    setIsProcessing(true)
+
+    // Simulate API call
+    setTimeout(() => {
+      if (isMounted.current) {
+        // Simulate response
+        const response: Message = {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: `This is a simulated response to your message: "${message}"`,
+          feedback: null,
+        }
+
+        setChatMessages((prev) => [...prev, response])
+        setMessagesRemaining((prev) => {
+          const remaining = prev - 1
+          if (remaining <= 0) {
+            setShowUpgradeOverlay(true)
+          }
+          return remaining
+        })
+        setIsProcessing(false)
+      }
+    }, 2000)
+  }
+
+  // Handle key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  // Reset conversation
+  const resetConversation = () => {
+    setChatMessages([
+      {
+        id: "system-reset",
+        role: "assistant",
+        content: `Hi ${name || "there"}! I'm here to chat whenever you need me. How are you feeling today?`,
+        feedback: null,
+      },
+    ])
+    setMessagesRemaining(10)
+    setShowUpgradeOverlay(false)
+  }
+
+  // Submit feedback
+  const submitFeedback = (messageId: string, type: "positive" | "negative", text?: string) => {
+    setChatMessages((prev) =>
+      prev.map((msg) => (msg.id === messageId ? { ...msg, feedback: type, feedbackText: text } : msg)),
+    )
+
+    // Here you would send the feedback to your API
+  }
+
+  return (
+    <section className="py-24" ref={ref}>
+      <div className="container mx-auto px-4">
+        <h1 className="text-4xl md:text-5xl font-bold text-center mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500">
+          Interactive AI Demo
+        </h1>
+        <p className="text-center text-gray-300 max-w-3xl mx-auto mb-12">
+          Experience how our technology creates authentic connections through this interactive demo. Upload audio,
+          customize personality traits, and chat with your personalized AI companion.
+        </p>
+
+        {/* Premium colorful box around the entire demo */}
+        <div className="relative max-w-6xl mx-auto">
+          {/* Colorful gradient border */}
+          <div
+            className="absolute inset-0 rounded-xl opacity-70"
+            style={{
+              background: "linear-gradient(45deg, #60a5fa, #a78bfa, #f472b6, #2dd4bf)",
+              filter: "blur(20px)",
+              transform: "scale(1.03)",
+              zIndex: 0,
+            }}
+          ></div>
+
+          <div
+            className={`relative z-10 bg-black/80 backdrop-blur-md rounded-xl p-6 md:p-8 ${
+              inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+            }`}
+            style={{
+              transition: "all 0.6s ease-out",
+            }}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Persona-Intake Column */}
+              <div
+                className={`bg-black/50 backdrop-blur-md border border-white/10 rounded-xl p-6 space-y-6 ${isGenerating || generationComplete ? "opacity-50 pointer-events-none" : ""}`}
+              >
+                <h2 className="text-2xl font-bold mb-4 text-blue-400">Create Your AI Companion</h2>
+
+                {/* Name field */}
+                <div className="space-y-2">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-300">
+                    Name
+                  </label>
+                  <div className="relative">
+                    <input
+                      ref={nameInputRef}
+                      id="name"
+                      type="text"
+                      className="w-full bg-black/50 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="Enter full name or nickname"
+                      maxLength={60}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                    <span
+                      className={`absolute right-3 bottom-3 text-xs ${name.length === 60 ? "text-red-500" : "text-gray-500"}`}
+                    >
+                      {name.length}/60
+                    </span>
+                  </div>
+                </div>
+
+                {/* Audio uploader */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">Voice Sample</label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={handleDragOver}
+                    onDrop={handleFileDrop}
+                    className="relative overflow-hidden bg-black backdrop-blur-xl border border-white/20 rounded-xl p-6 text-center cursor-pointer hover:border-blue-500 transition-all"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="audio/wav,audio/mpeg,audio/mp3,audio/x-m4a"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                    />
+
+                    {!audioFile ? (
+                      <>
+                        <Upload className="mx-auto h-10 w-10 text-gray-400" />
+                        <p className="mt-2 text-sm text-gray-300">Drag and drop or click to upload a voice clip</p>
+                        <p className="text-xs text-gray-500 mt-1">WAV, MP3, or M4A format (10-60 seconds, max 6MB)</p>
+                      </>
+                    ) : (
+                      <>
+                        {isUploading ? (
+                          <div className="space-y-3">
+                            <p className="text-sm text-gray-300">Uploading {audioFile.name}...</p>
+                            <div className="w-full bg-gray-700 rounded-full h-2.5">
+                              <div
+                                className="bg-blue-600 h-2.5 rounded-full"
+                                style={{ width: `${uploadProgress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm text-gray-300 truncate max-w-[80%]">{audioFile.name}</p>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (audioUrl) {
+                                    URL.revokeObjectURL(audioUrl)
+                                  }
+                                  setAudioFile(null)
+                                  setAudioUrl(null)
+                                }}
+                                className="text-gray-400 hover:text-red-500"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+
+                            {audioUrl && (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleAudioPlayback()
+                                  }}
+                                  className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-600"
+                                >
+                                  {isAudioPlaying ? <Pause size={16} /> : <Play size={16} />}
+                                </button>
+                                <div className="flex-1 h-8 bg-gray-800 rounded-lg overflow-hidden">
+                                  {/* Simple waveform visualization */}
+                                  <div className="h-full flex items-center justify-around px-1">
+                                    {Array.from({ length: 20 }).map((_, i) => (
+                                      <div
+                                        key={i}
+                                        className="w-1 bg-blue-400 rounded-full"
+                                        style={{
+                                          height: `${20 + Math.sin(i * 0.5) * 15}%`,
+                                          opacity: isAudioPlaying ? 1 : 0.5,
+                                        }}
+                                      ></div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {uploadError && <p className="mt-2 text-sm text-red-500">{uploadError}</p>}
+                  </div>
+                </div>
+
+                {/* Persona overview */}
+                <div className="space-y-2">
+                  <label htmlFor="personality-description" className="block text-sm font-medium text-gray-300">
+                    Persona Overview
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      id="personality-description"
+                      className="w-full bg-black/50 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      rows={4}
+                      placeholder="Key memories, speaking quirks, favourite sayings..."
+                      maxLength={600}
+                      spellCheck={false}
+                      value={personalityDescription}
+                      onChange={(e) => setPersonalityDescription(e.target.value)}
+                    ></textarea>
+                    <span
+                      className={`absolute right-3 bottom-3 text-xs ${
+                        personalityDescription.length < 120
+                          ? "text-red-500"
+                          : personalityDescription.length >= 550
+                            ? "text-yellow-500"
+                            : "text-gray-500"
+                      }`}
+                    >
+                      {personalityDescription.length}/600
+                      {personalityDescription.length < 120 && ` (${120 - personalityDescription.length} more needed)`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Trait sliders */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-gray-300">Personality Traits</h3>
+
+                  <div className="space-y-5">
+                    {(Object.keys(personalityTraits) as TraitName[]).map((trait) => (
+                      <div key={trait} className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <label htmlFor={`trait-${trait}`} className="text-sm text-gray-300 capitalize">
+                            {trait}
+                          </label>
+                          <span className="text-xs text-gray-400 bg-black/50 px-2 py-1 rounded">
+                            {personalityTraits[trait]}
+                          </span>
+                        </div>
+                        <div className="relative group">
+                          <input
+                            id={`trait-${trait}`}
+                            type="range"
+                            min="0"
+                            max="10"
+                            step="1"
+                            value={personalityTraits[trait]}
+                            onChange={(e) => handleTraitChange(trait, Number.parseInt(e.target.value))}
+                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                            aria-valuenow={personalityTraits[trait]}
+                            aria-valuemin={0}
+                            aria-valuemax={10}
+                          />
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-800 text-xs text-white rounded whitespace-nowrap">
+                            {traitDescriptions[trait]}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Memory pins */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-medium text-gray-300">Memories</h3>
+                    <span className="text-xs text-gray-400">{memories.length} / 10</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {memories.map((memory) => (
+                      <div
+                        key={memory.id}
+                        className="bg-gray-800/50 border border-gray-700 rounded-full px-3 py-1 text-sm text-gray-300 flex items-center group"
+                      >
+                        <span className="truncate max-w-[150px]">{memory.title}</span>
+                        <button
+                          onClick={() => deleteMemory(memory.id)}
+                          className="ml-2 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+
+                    {memories.length < 10 && (
+                      <button
+                        onClick={openMemoryModal}
+                        className="bg-gray-800/50 border border-gray-700 hover:border-blue-500 rounded-full px-3 py-1 text-sm text-gray-300 flex items-center"
+                      >
+                        <Plus size={14} className="mr-1" />
+                        Add memory
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Consent checkbox */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="consent"
+                    type="checkbox"
+                    className="w-4 h-4 text-blue-600 border-gray-700 rounded focus:ring-blue-500"
+                    checked={consentChecked}
+                    onChange={() => setConsentChecked(!consentChecked)}
+                  />
+                  <label htmlFor="consent" className="text-sm text-gray-300">
+                    I confirm I have the legal right to upload this material
+                  </label>
+                </div>
+
+                {/* Generate button */}
+                <div className="pt-4">
+                  <button
+                    onClick={generateDemo}
+                    disabled={!isFormValid()}
+                    className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-all ${
+                      isFormValid()
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                        : "bg-gray-700 cursor-not-allowed"
+                    }`}
+                  >
+                    Generate Demo
+                  </button>
+                </div>
+              </div>
+
+              {/* Replica-Preview Column */}
+              <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-xl p-6 space-y-6">
+                <h2 className="text-2xl font-bold mb-4 text-purple-400">Preview</h2>
+
+                {!generationComplete ? (
+                  isGenerating ? (
+                    <div className="space-y-6">
+                      {/* Voice synthesis progress */}
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm text-gray-300">Synthesising voice</p>
+                          <p className="text-sm text-gray-400">~{generationTime}s remaining</p>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2.5">
+                          <div
+                            className="bg-purple-600 h-2.5 rounded-full transition-all"
+                            style={{ width: `${generationProgress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Skeleton waveform */}
+                      <div className="bg-black/50 border border-white/10 rounded-xl p-4 h-40 flex items-center justify-center">
+                        <div className="w-full flex items-center justify-center space-x-1">
+                          {Array.from({ length: 40 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="w-1.5 bg-gray-700 rounded-full animate-pulse"
+                              style={{
+                                height: `${10 + Math.sin(i * 0.5) * 20}px`,
+                                animationDelay: `${i * 0.05}s`,
+                              }}
+                            ></div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Skeleton chat */}
+                      <div className="bg-black/50 border border-white/10 rounded-xl p-4 h-64">
+                        <div className="animate-pulse flex space-x-4 items-start">
+                          <div className="rounded-full bg-gray-700 h-8 w-8"></div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                            <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {generationError && (
+                        <div className="text-center">
+                          <p className="text-red-500 mb-2">{generationError}</p>
+                          <button onClick={generateDemo} className="text-blue-500 hover:text-blue-400">
+                            Retry
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="h-96 flex flex-col items-center justify-center text-center">
+                      <div className="w-24 h-24 mb-6 rounded-full bg-gray-800 flex items-center justify-center">
+                        <Upload className="h-12 w-12 text-gray-500" />
+                      </div>
+                      <p className="text-gray-400 mb-2">Complete the form to generate your AI companion</p>
+                      <p className="text-sm text-gray-500">Fill in all required fields and click "Generate Demo"</p>
+                    </div>
+                  )
+                ) : (
+                  <div className="space-y-6">
+                    {/* Voice player */}
+                    <div className="relative bg-black/50 border border-white/10 rounded-xl p-4 h-40 flex items-center justify-center">
+                      <div className="audio-wave w-full justify-center">
+                        {Array.from({ length: 40 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="audio-wave-bar"
+                            style={{
+                              height: isAudioPlaying ? `${10 + Math.sin(i * 0.5) * 20}px` : "10px",
+                              animationDelay: `${i * 0.05}s`,
+                              animationPlayState: isAudioPlaying ? "running" : "paused",
+                            }}
+                          ></div>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={toggleAudioPlayback}
+                        className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                        aria-label={isAudioPlaying ? "Pause" : "Play"}
+                      >
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center"
+                          style={{ background: `linear-gradient(to right, #a78bfa, #c4b5fd)` }}
+                        >
+                          {isAudioPlaying ? <Pause size={20} /> : <Play size={20} />}
+                        </div>
+                      </button>
+
+                      <a
+                        href="#"
+                        className="absolute bottom-2 right-2 text-xs text-blue-400 hover:text-blue-300"
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        Download sample
+                      </a>
+                    </div>
+
+                    {/* Chat window */}
+                    <div className="relative">
+                      <div
+                        ref={chatContainerRef}
+                        className="bg-black/50 border border-white/10 rounded-xl p-4 h-64 overflow-y-auto flex flex-col"
+                      >
+                        <div className="flex-1 space-y-4">
+                          {chatMessages.map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                            >
+                              {msg.role !== "user" && (
+                                <div
+                                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                                  style={{ background: `linear-gradient(to right, #a78bfa, #c4b5fd)` }}
+                                >
+                                  AI
+                                </div>
+                              )}
+                              <div
+                                className={`${
+                                  msg.role === "user" ? "mr-3 bg-purple-900/40" : "ml-3 bg-gray-800/70"
+                                } rounded-lg p-3 max-w-[80%]`}
+                              >
+                                <p className="text-sm text-gray-200">{msg.content}</p>
+
+                                {msg.role === "assistant" && (
+                                  <div className="mt-2 flex items-center space-x-2">
+                                    <button
+                                      onClick={() => submitFeedback(msg.id, "positive")}
+                                      className={`text-xs p-1 rounded ${msg.feedback === "positive" ? "text-green-500 bg-green-900/20" : "text-gray-400 hover:text-green-500"}`}
+                                    >
+                                      <ThumbsUp size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => submitFeedback(msg.id, "negative")}
+                                      className={`text-xs p-1 rounded ${msg.feedback === "negative" ? "text-red-500 bg-red-900/20" : "text-gray-400 hover:text-red-500"}`}
+                                    >
+                                      <ThumbsDown size={14} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              {msg.role === "user" && (
+                                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold">
+                                  You
+                                </div>
+                              )}
+                            </div>
+                          ))}
+
+                          {isProcessing && (
+                            <div className="flex items-start">
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                                style={{ background: `linear-gradient(to right, #a78bfa, #c4b5fd)` }}
+                              >
+                                AI
+                              </div>
+                              <div className="ml-3 bg-gray-800/70 rounded-lg p-3">
+                                <div className="flex space-x-1">
+                                  <div
+                                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                    style={{ animationDelay: "0ms" }}
+                                  ></div>
+                                  <div
+                                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                    style={{ animationDelay: "150ms" }}
+                                  ></div>
+                                  <div
+                                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                    style={{ animationDelay: "300ms" }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-4 flex items-center">
+                          <input
+                            type="text"
+                            className="flex-1 bg-black/50 border border-gray-700 rounded-l-lg p-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                            placeholder="Type a message..."
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            disabled={isProcessing || messagesRemaining <= 0}
+                            maxLength={250}
+                          />
+                          <button
+                            className={`p-2 rounded-r-lg ${
+                              isProcessing ? "bg-gray-700" : "bg-gradient-to-r from-purple-600 to-blue-600"
+                            }`}
+                            onClick={sendMessage}
+                            disabled={isProcessing || messagesRemaining <= 0}
+                          >
+                            <Send size={20} className="text-white" />
+                          </button>
+                        </div>
+
+                        {/* Message limit indicator */}
+                        <div className="mt-2 text-xs text-gray-400 flex justify-between items-center">
+                          <span>{messagesRemaining} / 10 free messages left</span>
+                          <button
+                            onClick={resetConversation}
+                            className="text-blue-400 hover:text-blue-300 flex items-center"
+                          >
+                            <RefreshCw size={12} className="mr-1" />
+                            Start over
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Upgrade overlay */}
+                      {showUpgradeOverlay && (
+                        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                          <div className="bg-gray-900 p-6 rounded-lg max-w-xs text-center">
+                            <h3 className="text-xl font-bold text-white mb-2">Continue the conversation</h3>
+                            <p className="text-gray-300 mb-4">Choose a plan to keep chatting with your AI companion</p>
+                            <a
+                              href="/pricing"
+                              className="block w-full py-2 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium rounded-lg transition-all"
+                            >
+                              View Plans
+                            </a>
+                            <button
+                              onClick={resetConversation}
+                              className="mt-3 text-sm text-blue-400 hover:text-blue-300"
+                            >
+                              Reset conversation instead
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Memory modal */}
+        {isAddingMemory && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gray-900 rounded-xl p-6 max-w-md w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white">Add Memory</h3>
+                <button onClick={closeMemoryModal} className="text-gray-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="memory-title" className="block text-sm font-medium text-gray-300 mb-1">
+                    Title
+                  </label>
+                  <input
+                    id="memory-title"
+                    type="text"
+                    className="w-full bg-black/50 border border-gray-700 rounded-lg p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Memory title"
+                    value={newMemory.title}
+                    onChange={(e) => setNewMemory({ ...newMemory, title: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="memory-description" className="block text-sm font-medium text-gray-300 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    id="memory-description"
+                    className="w-full bg-black/50 border border-gray-700 rounded-lg p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Describe this memory"
+                    rows={3}
+                    value={newMemory.description}
+                    onChange={(e) => setNewMemory({ ...newMemory, description: e.target.value })}
+                  ></textarea>
+                </div>
+
+                <div>
+                  <label htmlFor="memory-image" className="block text-sm font-medium text-gray-300 mb-1">
+                    Image (optional)
+                  </label>
+                  <input
+                    id="memory-image"
+                    type="text"
+                    className="w-full bg-black/50 border border-gray-700 rounded-lg p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Image URL"
+                    value={newMemory.imageUrl}
+                    onChange={(e) => setNewMemory({ ...newMemory, imageUrl: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-2">
+                  <button
+                    onClick={closeMemoryModal}
+                    className="px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={addMemory}
+                    disabled={!newMemory.title || !newMemory.description}
+                    className={`px-4 py-2 rounded-lg text-white ${
+                      newMemory.title && newMemory.description
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "bg-gray-700 cursor-not-allowed"
+                    }`}
+                  >
+                    Add Memory
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hidden audio elements */}
+        <audio ref={audioRef} onEnded={handleAudioEnded} className="hidden" />
+      </div>
+    </section>
+  )
+}
