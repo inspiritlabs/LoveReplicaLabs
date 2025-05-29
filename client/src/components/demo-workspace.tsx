@@ -43,7 +43,12 @@ const traitDescriptions: Record<TraitName, string> = {
   energy: "Higher energy creates more enthusiastic and animated responses",
 }
 
-export default function DemoWorkspace() {
+interface DemoWorkspaceProps {
+  user: any;
+  onSignOut: () => void;
+}
+
+export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
@@ -338,32 +343,51 @@ export default function DemoWorkspace() {
   }
 
   // Send message
-  const sendMessage = () => {
-    if (!message.trim() || isProcessing || messagesRemaining <= 0) return
+  const sendMessage = async () => {
+    if (!message.trim() || isProcessing || !currentReplica) return
 
-    const newMessage: Message = {
+    const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
       content: message,
       feedback: null,
     }
 
-    setChatMessages((prev) => [...prev, newMessage])
+    setChatMessages((prev) => [...prev, userMessage])
+    const currentMessage = message
     setMessage("")
     setIsProcessing(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      if (isMounted.current) {
-        // Simulate response
-        const response: Message = {
-          id: `assistant-${Date.now()}`,
+    try {
+      const response = await fetch("/api/chat/ai-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: currentMessage,
+          replicaId: currentReplica.id,
+          personalityTraits,
+          personalityDescription,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        const aiMessage: Message = {
+          id: data.messageId,
           role: "assistant",
-          content: `This is a simulated response to your message: "${message}"`,
+          content: data.message,
           feedback: null,
         }
 
-        setChatMessages((prev) => [...prev, response])
+        setChatMessages((prev) => [...prev, aiMessage])
+        
+        // Auto-play the audio response
+        if (data.audioUrl) {
+          const audio = new Audio(data.audioUrl)
+          audio.play().catch(console.error)
+        }
+        
         setMessagesRemaining((prev) => {
           const remaining = prev - 1
           if (remaining <= 0) {
@@ -371,9 +395,21 @@ export default function DemoWorkspace() {
           }
           return remaining
         })
-        setIsProcessing(false)
+      } else {
+        throw new Error("Failed to get AI response")
       }
-    }, 2000)
+    } catch (error) {
+      console.error("Error sending message:", error)
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: "Sorry, I encountered an error. Please try again.",
+        feedback: null,
+      }
+      setChatMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Handle key press
@@ -412,7 +448,10 @@ export default function DemoWorkspace() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold cosmic-glow">Create Your Replica</h1>
-          <button className="secondary-button px-4 py-2 rounded-lg text-white">
+          <button 
+            onClick={onSignOut}
+            className="secondary-button px-4 py-2 rounded-lg text-white"
+          >
             Sign Out
           </button>
         </div>
