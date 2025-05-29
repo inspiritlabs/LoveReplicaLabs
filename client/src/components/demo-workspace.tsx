@@ -1,16 +1,13 @@
-import React, { useState, useRef, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+"use client"
+
+import type React from "react"
+
+import { useState, useRef, useEffect } from "react"
 import { useInView } from "react-intersection-observer"
-import { Play, Pause, Upload, Plus, User, Heart, Brain, Zap, Shield, Smile, Trash2, X, Loader, CheckCircle, AlertCircle, Volume2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Progress } from "@/components/ui/progress"
-import { useToast } from "@/hooks/use-toast"
+import { Upload, Play, Pause, Send, Trash2, Plus, X, ThumbsUp, ThumbsDown, RefreshCw } from "lucide-react"
 import ImmersiveChat from "./immersive-chat"
 
+// TypeScript types
 type Role = "system" | "user" | "assistant"
 type TraitName = "warmth" | "humor" | "thoughtfulness" | "empathy" | "assertiveness" | "energy"
 
@@ -22,6 +19,13 @@ interface Message {
   feedbackText?: string
 }
 
+interface Memory {
+  id: string
+  title: string
+  description: string
+  imageUrl?: string
+}
+
 interface PersonalityTraits {
   warmth: number
   humor: number
@@ -29,6 +33,15 @@ interface PersonalityTraits {
   empathy: number
   assertiveness: number
   energy: number
+}
+
+const traitDescriptions: Record<TraitName, string> = {
+  warmth: "Higher warmth produces softer tone and more affectionate words",
+  humor: "Higher humor increases jokes, wordplay, and lighthearted responses",
+  thoughtfulness: "Higher thoughtfulness creates more reflective and detailed answers",
+  empathy: "Higher empathy focuses on understanding and validating emotions",
+  assertiveness: "Higher assertiveness leads to more direct and confident communication",
+  energy: "Higher energy creates more enthusiastic and animated responses",
 }
 
 interface DemoWorkspaceProps {
@@ -58,8 +71,9 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     assertiveness: 5,
     energy: 5,
   })
-  const [photos, setPhotos] = useState<Array<{ id: string; url: string }>>([])
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [memories, setMemories] = useState<Memory[]>([])
+  const [isAddingMemory, setIsAddingMemory] = useState(false)
+  const [newMemory, setNewMemory] = useState({ title: "", description: "", imageUrl: "" })
   const [consentChecked, setConsentChecked] = useState(false)
 
   // Upload state
@@ -75,36 +89,77 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [generationComplete, setGenerationComplete] = useState(false)
 
-  // Demo state
-  const [isDemoReady, setIsDemoReady] = useState(false)
-  const [generatedReplica, setGeneratedReplica] = useState<any>(null)
-
   // Chat state
-  const [messages, setMessages] = useState<Message[]>([])
-  const [inputValue, setInputValue] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
+  const [message, setMessage] = useState("")
+  const [chatMessages, setChatMessages] = useState<Message[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [messagesRemaining, setMessagesRemaining] = useState(10)
+  const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false)
+  const [currentReplica, setCurrentReplica] = useState<any>(null)
 
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const { toast } = useToast()
+  // Refs
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const chatContainerRef = useRef<HTMLDivElement | null>(null)
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
+  const isMounted = useRef(false)
 
-  // Handle photo upload
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files) return
+  // Set isMounted to true when component mounts
+  useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
 
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        setIsUploadingPhoto(true)
-        const url = URL.createObjectURL(file)
-        const newPhoto = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          url: url
+  // Focus name input on load
+  useEffect(() => {
+    if (nameInputRef.current) {
+      nameInputRef.current.focus()
+    }
+  }, [])
+
+  // Scroll to bottom of chat when messages change
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+    }
+  }, [chatMessages])
+
+  // Initialize chat with system message when generation is complete
+  useEffect(() => {
+    if (generationComplete && chatMessages.length === 0 && isMounted.current) {
+      setChatMessages([
+        {
+          id: "system-1",
+          role: "assistant",
+          content: `Hi ${name || "there"}! I'm here to chat whenever you need me. How are you feeling today?`,
+          feedback: null,
+        },
+      ])
+    }
+  }, [generationComplete, chatMessages.length, name])
+
+  // Simulate generation countdown
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined
+
+    if (isGenerating && generationTime > 0 && isMounted.current) {
+      interval = setInterval(() => {
+        if (isMounted.current) {
+          setGenerationTime((prev) => {
+            const newTime = prev - 1
+            setGenerationProgress(((25 - newTime) / 25) * 100)
+            return newTime
+          })
         }
-        setPhotos(prev => [...prev, newPhoto])
-        setIsUploadingPhoto(false)
-      }
-    })
-  }
+      }, 1000)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isGenerating, generationTime])
 
   // Check if form is valid
   const isFormValid = () => {
@@ -124,72 +179,127 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     if (!files || files.length === 0) return
 
     const file = files[0]
-    if (!file.type.startsWith('audio/')) {
-      toast({
-        title: "Invalid file type",
-        description: "Please select an audio file.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (file.size > 25 * 1024 * 1024) { // 25MB limit
-      toast({
-        title: "File too large",
-        description: "Please select an audio file under 25MB.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setAudioFile(file)
-    const url = URL.createObjectURL(file)
-    setAudioUrl(url)
-    
-    // Auto-upload voice
-    uploadVoice(file)
+    handleFileValidation(file)
   }
 
-  // Upload voice to ElevenLabs
-  const uploadVoice = async (file: File) => {
-    setIsUploading(true)
+  // Handle file drop
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0]
+      handleFileValidation(file)
+    }
+  }
+
+  // Prevent default drag behavior
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  // Validate file
+  const handleFileValidation = (file: File) => {
+    // Reset previous errors
     setUploadError(null)
-    setUploadProgress(0)
 
-    try {
-      const formData = new FormData()
-      formData.append('audio', file)
-      formData.append('name', name || 'Replica Voice')
+    // Check file type
+    const validTypes = ["audio/wav", "audio/mpeg", "audio/mp3", "audio/x-m4a"]
+    if (!validTypes.includes(file.type)) {
+      setUploadError("Please upload a WAV, MP3, or M4A file.")
+      return
+    }
 
-      const response = await fetch('/api/voice/create', {
-        method: 'POST',
-        body: formData
-      })
+    // Check file size (6MB max)
+    if (file.size > 6 * 1024 * 1024) {
+      setUploadError("File size exceeds 6MB limit.")
+      return
+    }
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Voice upload failed')
+    // Create object URL for preview
+    const url = URL.createObjectURL(file)
+
+    // Set file and URL first
+    setAudioFile(file)
+    setAudioUrl(url)
+
+    // Check audio duration
+    const audio = new Audio()
+    audio.onloadedmetadata = () => {
+      if (!isMounted.current) return
+
+      const duration = audio.duration
+      if (duration < 10 || duration > 60) {
+        setUploadError("Audio must be between 10 and 60 seconds.")
+        setAudioFile(null)
+        setAudioUrl(null)
+        URL.revokeObjectURL(url)
+        return
       }
 
-      const data = await response.json()
-      setVoiceId(data.voiceId)
-      setUploadProgress(100)
+      // Start upload and voice creation
+      setIsUploading(true)
 
-      toast({
-        title: "Voice uploaded successfully!",
-        description: "Your voice has been processed and is ready for use.",
-      })
+      // Create voice with ElevenLabs
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          const audioBase64 = reader.result as string
+          
+          const response = await fetch("/api/voice/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              audioFile: audioBase64,
+              name: name || "Custom Voice"
+            })
+          })
 
-    } catch (error: any) {
-      setUploadError(error.message)
-      toast({
-        title: "Upload failed",
-        description: error.message,
-        variant: "destructive",
-      })
-    } finally {
-      setIsUploading(false)
+          if (response.ok) {
+            const data = await response.json()
+            setVoiceId(data.voiceId)
+            setUploadProgress(100)
+          } else {
+            throw new Error("Voice creation failed")
+          }
+        } catch (error) {
+          console.error("Voice creation error:", error)
+          setUploadError("Failed to create voice. Please try again.")
+        } finally {
+          setIsUploading(false)
+        }
+      }
+      reader.readAsDataURL(file)
     }
+
+    audio.onerror = () => {
+      if (!isMounted.current) return
+      setUploadError("Could not process audio file. Please try another file.")
+      setAudioFile(null)
+      setAudioUrl(null)
+      URL.revokeObjectURL(url)
+    }
+
+    audio.src = url
+  }
+
+  // Toggle audio playback
+  const toggleAudioPlayback = () => {
+    if (!audioRef.current) return
+
+    if (isAudioPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+
+    setIsAudioPlaying(!isAudioPlaying)
+  }
+
+  // Handle audio ended
+  const handleAudioEnded = () => {
+    setIsAudioPlaying(false)
   }
 
   // Handle trait change
@@ -198,6 +308,38 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
       ...prev,
       [trait]: value,
     }))
+  }
+
+  // Open memory modal
+  const openMemoryModal = () => {
+    setIsAddingMemory(true)
+    setNewMemory({ title: "", description: "", imageUrl: "" })
+  }
+
+  // Close memory modal
+  const closeMemoryModal = () => {
+    setIsAddingMemory(false)
+  }
+
+  // Add memory
+  const addMemory = () => {
+    if (newMemory.title.trim() === "" || newMemory.description.trim() === "") return
+    if (memories.length >= 10) return
+
+    const memory: Memory = {
+      id: `memory-${Date.now()}`,
+      title: newMemory.title,
+      description: newMemory.description,
+      imageUrl: newMemory.imageUrl || undefined,
+    }
+
+    setMemories((prev) => [...prev, memory])
+    closeMemoryModal()
+  }
+
+  // Delete memory
+  const deleteMemory = (id: string) => {
+    setMemories((prev) => prev.filter((memory) => memory.id !== id))
   }
 
   // Generate demo
@@ -219,371 +361,762 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           voiceId: voiceId,
           personalityDescription: personalityDescription,
           personalityTraits: personalityTraits,
-          photos: photos,
+          memories: memories,
           isGenerated: false,
         }),
       })
 
-      if (!response.ok) {
+      if (response.ok) {
+        const replica = await response.json()
+        setCurrentReplica(replica)
+        
+        // Simulate generation time
+        const timer = setTimeout(() => {
+          if (isMounted.current) {
+            setIsGenerating(false)
+            setGenerationComplete(true)
+            // Update replica as generated
+            fetch(`/api/replicas/${replica.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ isGenerated: true }),
+            })
+          }
+        }, 25000)
+
+        return () => clearTimeout(timer)
+      } else {
         throw new Error("Failed to create replica")
       }
-
-      const replica = await response.json()
-      setGeneratedReplica(replica)
-      setIsDemoReady(true)
-      setGenerationComplete(true)
-
-      toast({
-        title: "Replica created successfully!",
-        description: "Your digital replica is ready for interaction.",
-      })
-
-    } catch (error: any) {
-      setGenerationError(error.message)
-      toast({
-        title: "Generation failed",
-        description: error.message,
-        variant: "destructive",
-      })
-    } finally {
+    } catch (error) {
+      console.error("Error creating replica:", error)
+      setGenerationError("Failed to create replica. Please try again.")
       setIsGenerating(false)
     }
   }
 
-  // Handle audio playback
-  const toggleAudio = () => {
-    if (!audioRef.current) return
+  // Send message
+  const sendMessage = async () => {
+    if (!message.trim() || isProcessing || !currentReplica) return
 
-    if (isAudioPlaying) {
-      audioRef.current.pause()
-    } else {
-      audioRef.current.play()
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: message,
+      feedback: null,
     }
 
-    setIsAudioPlaying(!isAudioPlaying)
+    setChatMessages((prev) => [...prev, userMessage])
+    const currentMessage = message
+    setMessage("")
+    setIsProcessing(true)
+
+    try {
+      const response = await fetch("/api/chat/ai-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: currentMessage,
+          replicaId: currentReplica.id,
+          personalityTraits,
+          personalityDescription,
+          voiceId,
+          userId: user.id,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        const aiMessage: Message = {
+          id: data.messageId,
+          role: "assistant",
+          content: data.message,
+          feedback: null,
+        }
+
+        setChatMessages((prev) => [...prev, aiMessage])
+        
+        // Auto-play the audio response
+        if (data.audioUrl) {
+          const audio = new Audio(data.audioUrl)
+          audio.play().catch(console.error)
+        }
+        
+        setMessagesRemaining((prev) => {
+          const remaining = prev - 1
+          if (remaining <= 0) {
+            setShowUpgradeOverlay(true)
+          }
+          return remaining
+        })
+      } else {
+        throw new Error("Failed to get AI response")
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: "Sorry, I encountered an error. Please try again.",
+        feedback: null,
+      }
+      setChatMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  // Handle audio ended
-  const handleAudioEnded = () => {
-    setIsAudioPlaying(false)
+  // Handle key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
   }
 
-  if (showImmersiveChat && selectedReplica) {
-    return (
-      <ImmersiveChat
-        replica={selectedReplica}
-        user={user}
-        onBack={() => {
-          setShowImmersiveChat(false)
-          setSelectedReplica(null)
-        }}
-      />
+  // Reset conversation
+  const resetConversation = () => {
+    setChatMessages([
+      {
+        id: "system-reset",
+        role: "assistant",
+        content: `Hi ${name || "there"}! I'm here to chat whenever you need me. How are you feeling today?`,
+        feedback: null,
+      },
+    ])
+    setMessagesRemaining(10)
+    setShowUpgradeOverlay(false)
+  }
+
+  // Submit feedback
+  const submitFeedback = (messageId: string, type: "positive" | "negative", text?: string) => {
+    setChatMessages((prev) =>
+      prev.map((msg) => (msg.id === messageId ? { ...msg, feedback: type, feedbackText: text } : msg)),
     )
+
+    // Here you would send the feedback to your API
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-pink-800 relative overflow-hidden">
-      {/* Animated background */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-40 right-32 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
-      </div>
-
-      <div className="relative z-10 container mx-auto px-6 py-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex justify-between items-center mb-8"
-        >
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Create Your Digital Replica
-            </h1>
-            <p className="text-gray-300">
-              Build an AI version of yourself or a loved one with voice and personality
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm text-gray-300">{user.email}</p>
-              <p className="text-xs text-purple-300">{user.credits || 0} credits remaining</p>
-            </div>
-            <Button onClick={onSignOut} variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
-              Sign Out
-            </Button>
-          </div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Configuration Panel */}
-          <motion.div
-            ref={ref}
-            initial={{ opacity: 0, x: -50 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8 }}
-            className="space-y-6"
+    <section id="demo-workspace" className="py-12 min-h-screen" ref={ref}>
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold cosmic-glow">Create Your Replica</h1>
+          <button 
+            onClick={onSignOut}
+            className="secondary-button px-4 py-2 rounded-lg text-white"
           >
-            {/* Basic Information */}
-            <div className="premium-card rounded-xl p-6">
-              <h3 className="text-xl font-semibold mb-4 text-white">Basic Information</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-300">Replica Name</label>
-                  <Input
-                    type="text"
-                    placeholder="Enter the name for your replica"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="bg-black/50 border-gray-600 text-white placeholder-gray-400"
-                  />
-                </div>
+            Sign Out
+          </button>
+        </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-300">Voice Sample</label>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <label className="primary-button px-4 py-2 rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2">
-                        <Upload className="w-4 h-4" />
-                        Choose Audio File
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                        />
-                      </label>
-                      {audioFile && (
-                        <span className="text-sm text-gray-300">{audioFile.name}</span>
-                      )}
+        {/* Premium colorful box around the entire demo */}
+        <div className="relative max-w-6xl mx-auto">
+          {/* Colorful gradient border */}
+          <div
+            className="absolute inset-0 rounded-xl opacity-70"
+            style={{
+              background: "linear-gradient(45deg, #60a5fa, #a78bfa, #f472b6, #2dd4bf)",
+              filter: "blur(20px)",
+              transform: "scale(1.03)",
+            }}
+          />
+          
+          <div className="relative premium-card rounded-xl p-8">
+            {!isGenerating && !generationComplete && (
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Left Panel: Configuration */}
+                <div className="space-y-6">
+                  {/* Name Input */}
+                  <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                      Name Your AI Companion
+                    </h3>
+                    <input
+                      ref={nameInputRef}
+                      type="text"
+                      placeholder="Enter a name..."
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full p-4 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
+                    />
+                  </div>
+
+                  {/* Audio Upload */}
+                  <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                      </svg>
+                      Voice Sample Upload
+                    </h3>
+                    <div
+                      className="upload-zone rounded-lg p-8 text-center cursor-pointer"
+                      onDrop={handleFileDrop}
+                      onDragOver={handleDragOver}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="mx-auto text-4xl text-gray-400 mb-4 w-12 h-12" />
+                      <p className="text-lg mb-2">Drop audio file here or click to browse</p>
+                      <p className="text-sm text-gray-400">Supports WAV, MP3, M4A • 10-60 seconds • Max 6MB</p>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
                     </div>
 
+                    {/* Upload Progress */}
                     {isUploading && (
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-300">Processing voice...</span>
-                          <span className="text-gray-300">{uploadProgress}%</span>
+                      <div className="mt-4 p-4 bg-black/30 rounded-lg">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Uploading...</span>
+                          <span>{uploadProgress}%</span>
                         </div>
-                        <Progress value={uploadProgress} className="bg-gray-700" />
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div
+                            className="progress-bar h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
                       </div>
                     )}
 
+                    {/* Audio Preview */}
+                    {audioFile && !isUploading && (
+                      <div className="mt-4 p-4 bg-black/30 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">{audioFile.name}</span>
+                          <button
+                            onClick={() => {
+                              setAudioFile(null)
+                              setAudioUrl(null)
+                              if (audioUrl) URL.revokeObjectURL(audioUrl)
+                            }}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={toggleAudioPlayback}
+                            className="primary-button p-2 rounded-full text-white"
+                          >
+                            {isAudioPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                          </button>
+                          <div className="audio-wave">
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                          </div>
+                          <span className="text-sm text-gray-400">Audio ready</span>
+                        </div>
+                        {audioUrl && (
+                          <audio
+                            ref={audioRef}
+                            src={audioUrl}
+                            onEnded={handleAudioEnded}
+                            className="hidden"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Upload Error */}
                     {uploadError && (
-                      <div className="flex items-center gap-2 text-red-400 text-sm">
-                        <AlertCircle className="w-4 h-4" />
+                      <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
                         {uploadError}
                       </div>
                     )}
+                  </div>
 
-                    {voiceId && (
-                      <div className="flex items-center gap-2 text-green-400 text-sm">
-                        <CheckCircle className="w-4 h-4" />
-                        Voice processed successfully
-                      </div>
-                    )}
+                  {/* Personality Description */}
+                  <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-pink-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                      </svg>
+                      Personality Description
+                    </h3>
+                    <textarea
+                      placeholder="Describe their personality, mannerisms, and what made them special. Include their sense of humor, how they spoke, their favorite topics, and memorable phrases they used..."
+                      value={personalityDescription}
+                      onChange={(e) => setPersonalityDescription(e.target.value)}
+                      className="w-full h-32 p-4 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:border-purple-500 focus:outline-none transition-colors"
+                    />
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-sm text-gray-400">Minimum 120 characters for best results</span>
+                      <span
+                        className={`text-sm ${
+                          personalityDescription.length >= 120 ? "text-green-400" : "text-gray-400"
+                        }`}
+                      >
+                        {personalityDescription.length} / 120
+                      </span>
+                    </div>
+                  </div>
 
-                    {audioUrl && (
-                      <div className="flex items-center gap-3 p-3 bg-black/30 rounded-lg">
-                        <button onClick={toggleAudio} className="text-white hover:text-purple-300">
-                          {isAudioPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                        </button>
-                        <span className="text-sm text-gray-300">Preview your voice sample</span>
-                        <audio
-                          ref={audioRef}
-                          src={audioUrl}
-                          onEnded={handleAudioEnded}
-                          className="hidden"
-                        />
-                      </div>
-                    )}
+                  {/* Personality Traits */}
+                  <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                      </svg>
+                      Personality Traits
+                    </h3>
+
+                    <div className="space-y-6">
+                      {Object.entries(personalityTraits).map(([trait, value]) => (
+                        <div key={trait}>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="font-medium capitalize">{trait}</label>
+                            <span className="text-sm text-purple-400 font-medium">{value}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={value}
+                            onChange={(e) => handleTraitChange(trait as TraitName, parseInt(e.target.value))}
+                            className="trait-slider w-full"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            {traitDescriptions[trait as TraitName]}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Memories Section */}
+                  <div className="glass-card rounded-xl p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-semibold flex items-center gap-3">
+                        <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Special Memories
+                      </h3>
+                      <button
+                        onClick={openMemoryModal}
+                        className="secondary-button px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2"
+                        disabled={memories.length >= 10}
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Memory
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {memories.length === 0 ? (
+                        <div className="col-span-full text-center py-8 text-gray-400">
+                          <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p>No memories added yet</p>
+                          <p className="text-sm">Add photos and descriptions of special moments</p>
+                        </div>
+                      ) : (
+                        memories.map((memory) => (
+                          <div key={memory.id} className="memory-card rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-medium">{memory.title}</h4>
+                              <button
+                                onClick={() => deleteMemory(memory.id)}
+                                className="text-gray-400 hover:text-red-400"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <p className="text-sm text-gray-400">{memory.description}</p>
+                            {memory.imageUrl && (
+                              <img
+                                src={memory.imageUrl}
+                                alt={memory.title}
+                                className="w-full h-32 object-cover rounded mt-2"
+                              />
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Consent and Generate Button */}
+                  <div className="text-center space-y-4">
+                    <label className="flex items-center justify-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={consentChecked}
+                        onChange={(e) => setConsentChecked(e.target.checked)}
+                        className="w-4 h-4 text-purple-500 rounded focus:ring-purple-500"
+                      />
+                      <span className="text-gray-300">
+                        I consent to creating an AI replica and understand the technology limitations
+                      </span>
+                    </label>
+                    <button
+                      onClick={generateDemo}
+                      disabled={!isFormValid()}
+                      className="primary-button px-12 py-4 rounded-xl font-semibold text-lg text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 mx-auto"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                      </svg>
+                      Generate AI Companion
+                    </button>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Personality Configuration */}
-            <div className="premium-card rounded-xl p-6">
-              <h3 className="text-xl font-semibold mb-4 text-white">Personality & Traits</h3>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-300">
-                    Personality Description <span className="text-red-400">*</span>
-                  </label>
-                  <Textarea
-                    placeholder="Describe the personality, speaking style, and unique characteristics of this person. Include how they express emotions, their sense of humor, communication patterns, and what makes them unique. (Minimum 120 characters)"
-                    value={personalityDescription}
-                    onChange={(e) => setPersonalityDescription(e.target.value)}
-                    className="bg-black/50 border-gray-600 text-white placeholder-gray-400 min-h-[100px]"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    {personalityDescription.length}/120 characters minimum
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium text-white">Trait Adjustments</h4>
-                  {Object.entries(personalityTraits).map(([trait, value]) => (
-                    <div key={trait} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-sm font-medium text-gray-300 capitalize flex items-center gap-2">
-                          {trait === "warmth" && <Heart className="w-4 h-4" />}
-                          {trait === "humor" && <Smile className="w-4 h-4" />}
-                          {trait === "thoughtfulness" && <Brain className="w-4 h-4" />}
-                          {trait === "empathy" && <User className="w-4 h-4" />}
-                          {trait === "assertiveness" && <Shield className="w-4 h-4" />}
-                          {trait === "energy" && <Zap className="w-4 h-4" />}
-                          {trait}
-                        </label>
-                        <span className="text-sm text-gray-400">{value}/10</span>
-                      </div>
-                      <Slider
-                        value={[value]}
-                        onValueChange={(newValue) => handleTraitChange(trait as TraitName, newValue[0])}
-                        max={10}
-                        min={1}
-                        step={1}
-                        className="slider-custom"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Photos Panel */}
-            <div className="premium-card rounded-xl p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2 text-white">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  Photos
-                </h3>
-                <label className="secondary-button px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2 cursor-pointer">
-                  <Plus className="w-4 h-4" />
-                  Add Photos
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {photos.length === 0 ? (
-                  <div className="col-span-full text-center py-8 text-gray-400">
-                    <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                {/* Right Panel: Preview/Instructions */}
+                <div className="premium-card rounded-xl p-6 flex flex-col justify-center items-center text-center space-y-6">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                    <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p>No photos uploaded yet</p>
-                    <p className="text-sm">Upload photos that will float in the chat background</p>
                   </div>
-                ) : (
-                  photos.map((photo) => (
-                    <div key={photo.id} className="relative group">
-                      <img
-                        src={photo.url}
-                        alt="Upload"
-                        className="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500/50 transition-all"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all" />
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Consent & Generate */}
-            <div className="premium-card rounded-xl p-6">
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <Checkbox
-                    id="consent"
-                    checked={consentChecked}
-                    onCheckedChange={(checked) => setConsentChecked(checked === true)}
-                  />
-                  <label htmlFor="consent" className="text-sm text-gray-300 leading-relaxed">
-                    I confirm that I have the right to use this voice and create this digital replica. 
-                    I understand that this technology should be used responsibly and ethically.
-                  </label>
-                </div>
-
-                <Button
-                  onClick={generateDemo}
-                  disabled={!isFormValid() || isGenerating}
-                  className="w-full primary-button py-3 text-lg font-medium"
-                >
-                  {isGenerating ? (
+                  <h3 className="text-2xl font-semibold cosmic-glow">Ready to Begin?</h3>
+                  <p className="text-gray-300 max-w-sm">
+                    Fill out the form on the left to create your personalized AI companion. Once generated, you'll be able to chat and interact in real-time.
+                  </p>
+                  <div className="space-y-3 text-sm text-gray-400">
                     <div className="flex items-center gap-2">
-                      <Loader className="w-5 h-5 animate-spin" />
-                      Creating Replica...
+                      <div className="w-2 h-2 rounded-full bg-purple-500" />
+                      <span>Upload voice sample (10-60 seconds)</span>
                     </div>
-                  ) : (
-                    "Create Replica"
-                  )}
-                </Button>
-
-                {generationError && (
-                  <div className="flex items-center gap-2 text-red-400 text-sm">
-                    <AlertCircle className="w-4 h-4" />
-                    {generationError}
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Preview Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="space-y-6"
-          >
-            {isDemoReady && generatedReplica ? (
-              <div className="premium-card rounded-xl p-6">
-                <h3 className="text-xl font-semibold mb-4 text-white">Your Replica is Ready!</h3>
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <User className="w-10 h-10 text-white" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-pink-500" />
+                      <span>Describe personality (120+ characters)</span>
                     </div>
-                    <h4 className="text-lg font-medium text-white">{generatedReplica.name}</h4>
-                    <p className="text-sm text-gray-300">Digital Replica</p>
-                  </div>
-
-                  <Button
-                    onClick={() => {
-                      setSelectedReplica(generatedReplica)
-                      setShowImmersiveChat(true)
-                    }}
-                    className="w-full primary-button py-3 text-lg font-medium"
-                  >
-                    Start Conversation
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="premium-card rounded-xl p-6">
-                <h3 className="text-xl font-semibold mb-4 text-white">Preview</h3>
-                <div className="space-y-4">
-                  <div className="text-center py-12 text-gray-400">
-                    <User className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p>Complete the form to create your replica</p>
-                    <p className="text-sm">Your digital version will appear here once ready</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-cyan-500" />
+                      <span>Adjust personality traits</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span>Add special memories (optional)</span>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
-          </motion.div>
+
+            {/* Generation Progress */}
+            {isGenerating && (
+              <div className="text-center space-y-6 py-12">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center mx-auto pulse-glow">
+                  <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <h3 className="text-3xl font-semibold cosmic-glow">Generating Your AI Companion</h3>
+                <p className="text-xl text-gray-300">Processing voice patterns and personality traits...</p>
+                
+                <div className="max-w-md mx-auto">
+                  <div className="w-full bg-gray-700 rounded-full h-3 mb-4">
+                    <div
+                      className="progress-bar h-3 rounded-full transition-all duration-1000"
+                      style={{ width: `${generationProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Estimated time remaining: <span className="font-medium">{generationTime}</span> seconds
+                  </p>
+                </div>
+
+                <div className="space-y-3 text-left max-w-md mx-auto">
+                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                    <span className="text-sm">✓ Voice analysis complete</span>
+                    <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                    <span className="text-sm">⟳ Building personality model...</span>
+                    <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg opacity-50">
+                    <span className="text-sm">○ Training conversational patterns</span>
+                    <div className="w-3 h-3 rounded-full bg-gray-600" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Chat Interface */}
+            {generationComplete && (
+              <div className="space-y-6">
+                <div className="text-center mb-8">
+                  <h3 className="text-3xl font-semibold cosmic-glow mb-4">Your AI Companion is Ready!</h3>
+                  <p className="text-gray-300">
+                    Start chatting below. You have{" "}
+                    <span className="text-purple-400 font-medium">{messagesRemaining}</span> messages remaining.
+                  </p>
+                </div>
+
+                {/* Chat Header */}
+                <div className="glass-card rounded-xl p-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                        <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">{name || "AI Companion"}</h4>
+                        <p className="text-sm text-gray-400">Ready to chat</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-400">Messages:</span>
+                      <span className="text-sm font-medium text-purple-400">{messagesRemaining}</span>
+                      <button
+                        onClick={() => {
+                          setSelectedReplica(currentReplica);
+                          setShowImmersiveChat(true);
+                        }}
+                        className="primary-button px-4 py-2 rounded-lg text-white text-sm"
+                      >
+                        Full Screen
+                      </button>
+                      <button
+                        onClick={resetConversation}
+                        className="secondary-button p-2 rounded-lg text-white"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chat Messages */}
+                <div
+                  ref={chatContainerRef}
+                  className="glass-card rounded-xl p-6 h-96 overflow-y-auto space-y-4 scroll-smooth"
+                >
+                  {chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex items-start gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          msg.role === "user"
+                            ? "bg-gradient-to-r from-blue-500 to-purple-500"
+                            : "bg-gradient-to-r from-purple-500 to-pink-500"
+                        }`}
+                      >
+                        {msg.role === "user" ? (
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div
+                        className={`message-bubble rounded-lg p-4 ${
+                          msg.role === "user" ? "user-message text-white" : "assistant-message"
+                        }`}
+                      >
+                        <p className="text-sm">{msg.content}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs text-gray-400">
+                            {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {msg.role === "assistant" && (
+                            <div className="flex gap-2 ml-auto">
+                              <button
+                                onClick={() => submitFeedback(msg.id, "positive")}
+                                className={`text-xs hover:text-green-400 ${
+                                  msg.feedback === "positive" ? "text-green-400" : "text-gray-400"
+                                }`}
+                              >
+                                <ThumbsUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => submitFeedback(msg.id, "negative")}
+                                className={`text-xs hover:text-red-400 ${
+                                  msg.feedback === "negative" ? "text-red-400" : "text-gray-400"
+                                }`}
+                              >
+                                <ThumbsDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Processing Indicator */}
+                  {isProcessing && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                        </svg>
+                      </div>
+                      <div className="assistant-message rounded-lg p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="audio-wave">
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                          </div>
+                          <span className="text-sm text-gray-400">AI is thinking...</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat Input */}
+                <div className="glass-card rounded-xl p-4">
+                  <div className="flex gap-3">
+                    <textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Type your message..."
+                      className="flex-1 p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:border-purple-500 focus:outline-none transition-colors"
+                      rows={2}
+                      disabled={messagesRemaining <= 0}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={!message.trim() || isProcessing || messagesRemaining <= 0}
+                      className="primary-button px-6 py-3 rounded-lg font-medium text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Send className="w-4 h-4" />
+                      Send
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Memory Modal */}
+        {isAddingMemory && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="premium-card rounded-xl p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-semibold">Add Memory</h3>
+                <button onClick={closeMemoryModal} className="text-gray-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Beach vacation 2019"
+                    value={newMemory.title}
+                    onChange={(e) => setNewMemory((prev) => ({ ...prev, title: e.target.value }))}
+                    className="w-full p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <textarea
+                    placeholder="Describe this special memory..."
+                    value={newMemory.description}
+                    onChange={(e) => setNewMemory((prev) => ({ ...prev, description: e.target.value }))}
+                    className="w-full h-24 p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Image URL (optional)</label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={newMemory.imageUrl}
+                    onChange={(e) => setNewMemory((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                    className="w-full p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={closeMemoryModal}
+                    className="secondary-button flex-1 py-3 rounded-lg font-medium text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={addMemory}
+                    disabled={!newMemory.title.trim() || !newMemory.description.trim()}
+                    className="primary-button flex-1 py-3 rounded-lg font-medium text-white disabled:opacity-50"
+                  >
+                    Add Memory
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upgrade Overlay */}
+        {showUpgradeOverlay && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="premium-card rounded-xl p-8 w-full max-w-md text-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-semibold mb-4 cosmic-glow">Demo Limit Reached</h3>
+              <p className="text-gray-300 mb-6">
+                You've used all 10 demo messages. Upgrade to continue unlimited conversations with your AI companion.
+              </p>
+
+              <div className="space-y-3">
+                <button className="primary-button w-full py-3 rounded-lg font-medium text-white">
+                  <svg className="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  Upgrade to Premium
+                </button>
+                <button
+                  onClick={resetConversation}
+                  className="secondary-button w-full py-3 rounded-lg font-medium text-white"
+                >
+                  Reset Demo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Immersive Chat Overlay */}
+        {showImmersiveChat && selectedReplica && (
+          <ImmersiveChat
+            replica={selectedReplica}
+            user={user}
+            onBack={() => setShowImmersiveChat(false)}
+          />
+        )}
       </div>
-    </div>
+    </section>
   )
 }
