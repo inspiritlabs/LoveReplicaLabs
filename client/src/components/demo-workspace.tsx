@@ -71,9 +71,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     assertiveness: 5,
     energy: 5,
   })
-  const [memories, setMemories] = useState<Memory[]>([])
-  const [isAddingMemory, setIsAddingMemory] = useState(false)
-  const [newMemory, setNewMemory] = useState({ title: "", description: "", imageUrl: "" })
+  const [photos, setPhotos] = useState<string[]>([])
   const [consentChecked, setConsentChecked] = useState(false)
 
   // Upload state
@@ -204,7 +202,14 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     // Reset previous errors
     setUploadError(null)
 
-    // Check file type
+    // Check if it's an image file for photos
+    if (file.type.startsWith("image/")) {
+      const imageUrl = URL.createObjectURL(file)
+      setPhotos(prev => [...prev, imageUrl])
+      return
+    }
+
+    // Check file type for audio
     const validTypes = ["audio/wav", "audio/mpeg", "audio/mp3", "audio/x-m4a"]
     if (!validTypes.includes(file.type)) {
       setUploadError("Please upload a WAV, MP3, or M4A file.")
