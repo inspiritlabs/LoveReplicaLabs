@@ -8,7 +8,69 @@ const OPENAI_API_KEY = "sk-proj-HVm-6p8B6Jn5SuAiEM3XZJjs2NEcgcv3zELqug7f-tf0cSe0
 const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth routes
+  // Access code authentication
+  app.post("/api/auth/access-code", async (req, res) => {
+    try {
+      const { accessCode } = req.body;
+      
+      if (!accessCode || typeof accessCode !== 'string') {
+        return res.status(400).json({ error: "Access code required" });
+      }
+
+      // Validate access code pattern: INSP-XXXX-YYYY
+      const codePattern = /^INSP-\d{4}-[A-Z]{4}$/;
+      if (!codePattern.test(accessCode)) {
+        return res.status(401).json({ error: "Invalid access code format" });
+      }
+
+      // Extract sequence number from code
+      const parts = accessCode.split('-');
+      const sequenceNum = parseInt(parts[1]);
+      
+      // Generate valid suffix based on sequence
+      const suffixes = [
+        "ALFA", "BETA", "GAMA", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
+        "KILO", "LIMA", "MIKE", "NOVA", "OSCA", "PAPA", "QUBE", "ROME", "SIER", "TANG",
+        "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU", "APEX", "CORE", "FLUX", "HAWK",
+        "IRON", "JADE", "KING", "LYNX", "MARS", "NEON", "OPUS", "PEAK", "QUAD", "RUSH",
+        "SYNC", "TIDE", "UNIX", "VOLT", "WAVE", "XENO", "YAML", "ZERO", "ATOM", "BYTE"
+      ];
+      
+      const expectedSuffix = suffixes[(sequenceNum - 1) % suffixes.length];
+      
+      if (parts[2] !== expectedSuffix) {
+        return res.status(401).json({ error: "Invalid access code" });
+      }
+
+      // Create or get user based on access code
+      const email = `user${sequenceNum.toString().padStart(4, '0')}@inspirt.ai`;
+      let user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        const hashedPassword = await bcrypt.hash(accessCode, 10);
+        user = await storage.createUser({
+          email: email,
+          password: hashedPassword,
+        });
+      }
+
+      req.session.userId = user.id;
+      res.json({ 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          credits: user.credits, 
+          isAdmin: user.isAdmin 
+        } 
+      });
+
+    } catch (error) {
+      console.error("Access code auth error:", error);
+      res.status(500).json({ error: "Authentication failed" });
+    }
+  });
+
+  // Auth routes  
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { email, password } = insertUserSchema.parse(req.body);
