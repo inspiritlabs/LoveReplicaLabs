@@ -60,13 +60,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Replica routes
   app.post("/api/replicas", async (req, res) => {
     try {
-      console.log("Replica creation request body:", req.body);
       const replicaData = insertReplicaSchema.parse(req.body);
-      console.log("Parsed replica data:", replicaData);
       const replica = await storage.createReplica(replicaData);
       res.json(replica);
     } catch (error) {
-      console.error("Replica creation error:", error);
       res.status(400).json({ error: "Invalid request" });
     }
   });

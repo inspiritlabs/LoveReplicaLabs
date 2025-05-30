@@ -109,36 +109,31 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-cyan-900/20 backdrop-blur-3xl">
-      {/* Floating Photos Background - Continuous Animation */}
+      {/* Floating Photos Background */}
       {uploadedPhotos.map((photo, index) => (
         <div
-          key={`photo-${index}-${photo.slice(-10)}`}
-          className="absolute pointer-events-none will-change-transform"
+          key={index}
+          className="absolute pointer-events-none transition-opacity duration-700"
           style={{
-            left: `${15 + (index * 13) % 70}%`,
-            top: `${20 + (index * 17) % 60}%`,
-            animation: `continuousFloat${index % 3} ${20 + (index % 10)}s linear infinite`,
-            animationDelay: `${(index * 2.5) % 10}s`,
-            zIndex: 1,
+            left: `${Math.random() * 70 + 15}%`,
+            top: `${Math.random() * 70 + 15}%`,
+            animation: `float ${20 + Math.random() * 10}s ease-in-out infinite alternate`,
+            animationDelay: `${Math.random() * 5}s`,
           }}
         >
           <div 
-            className="relative rounded-xl overflow-hidden transform-gpu"
+            className="relative rounded-xl overflow-hidden"
             style={{
               background: 'linear-gradient(45deg, #ff006e, #8338ec, #3a86ff, #06ffa5, #ffbe0b, #ff006e)',
-              backgroundSize: '400% 400%',
-              animation: `rainbowBorder ${4 + (index % 3)}s ease infinite`,
-              padding: '3px',
-              animationDelay: `${(index * 0.7) % 3}s`,
+              backgroundSize: '300% 300%',
+              animation: 'rainbow 3s ease infinite',
+              padding: '2px',
             }}
           >
             <img
               src={photo}
-              alt="Floating memory"
-              className="w-20 h-20 md:w-28 md:h-28 object-cover rounded-lg opacity-60 hover:opacity-80 transition-opacity duration-500"
-              style={{
-                transform: `rotate(${(index * 5) % 15 - 7}deg)`,
-              }}
+              alt="Memory"
+              className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg"
             />
           </div>
         </div>
