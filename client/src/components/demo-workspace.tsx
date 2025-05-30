@@ -538,7 +538,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                       <Upload className="mx-auto text-4xl text-gray-400 mb-4 w-12 h-12" />
                       <p className="text-lg mb-2">Drop files here or click to browse</p>
                       <p className="text-sm text-gray-400">Audio: WAV, MP3, M4A • 10-60 seconds • Max 6MB</p>
-                      <p className="text-sm text-gray-400">Photos: JPG, PNG • For chat backgrounds</p>
+                      <p className="text-sm text-gray-400">Photos: JPG, PNG • Unlimited uploads for chat backgrounds</p>
                       <input
                         ref={fileInputRef}
                         type="file"
