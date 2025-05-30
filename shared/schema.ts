@@ -20,7 +20,7 @@ export const replicas = pgTable("replicas", {
   voiceId: text("voice_id"),
   personalityDescription: text("personality_description"),
   personalityTraits: jsonb("personality_traits"),
-  systemPrompt: text("system_prompt"),
+
   photos: jsonb("photos").$type<Array<string>>(),
   userName: text("user_name"),
   isGenerated: boolean("is_generated").default(false),
