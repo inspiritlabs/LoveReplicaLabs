@@ -44,6 +44,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [generationComplete, setGenerationComplete] = useState(false)
   const [currentReplica, setCurrentReplica] = useState<any>(null)
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
+  const [systemPrompt, setSystemPrompt] = useState("You are a warm, empathetic AI companion. Respond with care and understanding, drawing from the personality traits configured for you.")
   const [personalityTraits, setPersonalityTraits] = useState<PersonalityTraits>({
     warmth: 7,
     humor: 5,
@@ -94,13 +95,21 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
 
   const createVoiceMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData()
-      formData.append('audio', file)
-      formData.append('name', name)
+      // Convert file to base64
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
 
       const response = await fetch('/api/voice/create', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audioFile: base64Audio,
+          name: name
+        }),
       })
 
       if (!response.ok) {
@@ -122,6 +131,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           voiceId: voiceData.voiceId,
           personalityTraits,
           photos: uploadedPhotos,
+          systemPrompt,
         }),
       })
       if (!response.ok) {
@@ -148,6 +158,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
       return
     }
 
+    console.log('Audio file selected:', audioFile.name, audioFile.type, audioFile.size)
     setIsGenerating(true)
 
     try {
@@ -215,6 +226,21 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                   placeholder="Enter a name..."
                   className="w-full bg-white/5 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors"
                 />
+              </div>
+
+              {/* System Prompt */}
+              <div className="glass-card rounded-xl p-6">
+                <h3 className="text-xl font-semibold mb-4 cosmic-glow">System Prompt</h3>
+                <textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="Define how your AI companion should behave and respond..."
+                  rows={4}
+                  className="w-full bg-white/5 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors resize-none"
+                />
+                <p className="text-xs text-gray-400 mt-2">
+                  This defines your companion's personality and behavior patterns.
+                </p>
               </div>
 
               {/* Voice Upload */}
