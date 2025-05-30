@@ -1,8 +1,8 @@
 // Access Code Generator for Inspirt Labs
 // Generates 1000+ unique access codes following INSP-XXXX-YYYY pattern
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 // Extended suffix list for maximum uniqueness
 const suffixes = [
@@ -120,8 +120,4 @@ function main() {
   console.log(`  ${adminCodes[0].code}`);
 }
 
-if (require.main === module) {
-  main();
-}
-
-module.exports = { generateAccessCodes, generateAdminCodes, suffixes };
+main();
