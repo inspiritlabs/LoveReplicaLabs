@@ -315,6 +315,14 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     }))
   }
 
+  // Auto-launch immersive chat when generation completes
+  useEffect(() => {
+    if (generationComplete && currentReplica && !showImmersiveChat) {
+      setSelectedReplica(currentReplica);
+      setShowImmersiveChat(true);
+    }
+  }, [generationComplete, currentReplica])
+
 
 
   // Generate demo
@@ -785,59 +793,53 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
               </div>
             )}
 
-            {/* Chat Interface */}
-            {generationComplete && (
-              <div className="space-y-6">
-                <div className="text-center mb-8">
-                  <h3 className="text-3xl font-semibold cosmic-glow mb-4">Your AI Companion is Ready!</h3>
-                  <p className="text-gray-300">
-                    Start chatting below. You have{" "}
-                    <span className="text-purple-400 font-medium">{messagesRemaining}</span> messages remaining.
-                  </p>
-                </div>
+          </div>
+        </div>
 
-                {/* Chat Header */}
-                <div className="glass-card rounded-xl p-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                        <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">{name || "AI Companion"}</h4>
-                        <p className="text-sm text-gray-400">Ready to chat</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-400">Messages:</span>
-                      <span className="text-sm font-medium text-purple-400">{messagesRemaining}</span>
-                      <button
-                        onClick={() => {
-                          setSelectedReplica(currentReplica);
-                          setShowImmersiveChat(true);
-                        }}
-                        className="primary-button px-8 py-4 rounded-xl text-white text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-xl"
-                        style={{
-                          background: 'linear-gradient(135deg, #8b5cf6, #f472b6)',
-                          boxShadow: '0 15px 30px rgba(139, 92, 246, 0.4)',
-                        }}
-                      >
-                        Enter Immersive Chat
-                      </button>
-                      <button
-                        onClick={resetConversation}
-                        className="secondary-button p-2 rounded-lg text-white"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+        {/* Upgrade Overlay */}
+        {showUpgradeOverlay && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="premium-card rounded-xl p-8 w-full max-w-md text-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-semibold mb-4 cosmic-glow">Demo Limit Reached</h3>
+              <p className="text-gray-300 mb-6">
+                You've used all 10 demo messages. Upgrade to continue unlimited conversations with your AI companion.
+              </p>
 
-                {/* Chat Messages */}
-                <div
+              <div className="space-y-3">
+                <button className="primary-button w-full py-3 rounded-lg font-medium text-white">
+                  <svg className="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  Upgrade to Premium
+                </button>
+                <button
+                  onClick={resetConversation}
+                  className="secondary-button w-full py-3 rounded-lg font-medium text-white"
+                >
+                  Reset Demo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Immersive Chat Overlay */}
+        {showImmersiveChat && selectedReplica && (
+          <ImmersiveChat
+            replica={selectedReplica}
+            user={user}
+            onBack={() => setShowImmersiveChat(false)}
+          />
+        )}
+      </div>
+    </section>
+  )
+}
                   ref={chatContainerRef}
                   className="glass-card rounded-xl p-6 h-96 overflow-y-auto space-y-4 scroll-smooth"
                 >
