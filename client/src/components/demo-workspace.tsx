@@ -500,8 +500,8 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           
           <div className="relative premium-card rounded-xl p-8">
             {!isGenerating && !generationComplete && (
-              <div className="grid lg:grid-cols-2 gap-8">
-                {/* Left Panel: Configuration */}
+              <div className="max-w-4xl mx-auto space-y-8">
+                {/* Configuration Panel */}
                 <div className="space-y-6">
                   {/* Name Input */}
                   <div className="glass-card rounded-xl p-6">
@@ -543,7 +543,14 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                         ref={fileInputRef}
                         type="file"
                         accept="audio/*,image/*"
-                        onChange={handleFileSelect}
+                        onChange={(e) => {
+                          const files = e.target.files
+                          if (files) {
+                            Array.from(files).forEach(file => {
+                              handleFileValidation(file)
+                            })
+                          }
+                        }}
                         className="hidden"
                         multiple
                       />
@@ -718,9 +725,13 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                     <button
                       onClick={generateDemo}
                       disabled={!isFormValid()}
-                      className="primary-button px-12 py-4 rounded-xl font-semibold text-lg text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 mx-auto"
+                      className="w-full max-w-md mx-auto primary-button px-16 py-6 rounded-2xl font-bold text-xl text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 transform hover:scale-105 transition-all duration-300 shadow-2xl"
+                      style={{
+                        background: 'linear-gradient(135deg, #8b5cf6, #f472b6, #06b6d4)',
+                        boxShadow: '0 20px 40px rgba(139, 92, 246, 0.3)',
+                      }}
                     >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                       </svg>
                       Generate AI Companion
@@ -728,36 +739,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                   </div>
                 </div>
 
-                {/* Right Panel: Preview/Instructions */}
-                <div className="premium-card rounded-xl p-6 flex flex-col justify-center items-center text-center space-y-6">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                    <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-2xl font-semibold cosmic-glow">Ready to Begin?</h3>
-                  <p className="text-gray-300 max-w-sm">
-                    Fill out the form on the left to create your personalized AI companion. Once generated, you'll be able to chat and interact in real-time.
-                  </p>
-                  <div className="space-y-3 text-sm text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-purple-500" />
-                      <span>Upload voice sample (10-60 seconds)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-pink-500" />
-                      <span>Describe personality (120+ characters)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-cyan-500" />
-                      <span>Adjust personality traits</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                      <span>Add special memories (optional)</span>
-                    </div>
-                  </div>
-                </div>
+
               </div>
             )}
 
@@ -836,9 +818,13 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                           setSelectedReplica(currentReplica);
                           setShowImmersiveChat(true);
                         }}
-                        className="primary-button px-4 py-2 rounded-lg text-white text-sm"
+                        className="primary-button px-8 py-4 rounded-xl text-white text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-xl"
+                        style={{
+                          background: 'linear-gradient(135deg, #8b5cf6, #f472b6)',
+                          boxShadow: '0 15px 30px rgba(139, 92, 246, 0.4)',
+                        }}
                       >
-                        Full Screen
+                        Enter Immersive Chat
                       </button>
                       <button
                         onClick={resetConversation}
