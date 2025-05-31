@@ -124,7 +124,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     }
   }, [chatMessages])
 
-  // Initialize chat with system message when generation is complete
+  // Initialize chat with system message when generation is complete and auto-launch immersive chat
   useEffect(() => {
     if (generationComplete && chatMessages.length === 0 && isMounted.current) {
       setChatMessages([
@@ -135,8 +135,23 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           feedback: null,
         },
       ])
+      
+      // Auto-launch immersive chat
+      const replica = {
+        id: Date.now(),
+        name: name || "AI Companion",
+        photos: photos,
+        audioUrl: audioUrl,
+        voiceId: voiceId,
+        personalityDescription: personalityDescription,
+        personalityTraits: personalityTraits,
+        userName: name
+      }
+      setCurrentReplica(replica)
+      setSelectedReplica(replica)
+      setShowImmersiveChat(true)
     }
-  }, [generationComplete, chatMessages.length, name])
+  }, [generationComplete, chatMessages.length, name, photos, audioUrl, voiceId, personalityDescription, personalityTraits])
 
   // Simulate generation countdown
   useEffect(() => {
