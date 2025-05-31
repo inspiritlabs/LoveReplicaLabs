@@ -13,19 +13,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { accessCode } = req.body;
       
+      console.log("Validating access code:", accessCode);
+      
       if (!accessCode || typeof accessCode !== 'string') {
+        console.log("Missing or invalid access code");
         return res.status(400).json({ error: "Access code required" });
       }
 
       // Validate access code pattern: INSP-XXXX-YYYY
       const codePattern = /^INSP-\d{4}-[A-Z]{4}$/;
       if (!codePattern.test(accessCode)) {
+        console.log("Pattern validation failed for:", accessCode);
         return res.status(401).json({ error: "Invalid access code format" });
       }
 
       // Extract sequence number from code
       const parts = accessCode.split('-');
       const sequenceNum = parseInt(parts[1]);
+      
+      console.log("Sequence number:", sequenceNum);
       
       // Simple suffix list - exactly 26 NATO phonetic alphabet codes  
       const suffixes = [
@@ -35,11 +41,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       
       const expectedSuffix = suffixes[(sequenceNum - 1) % suffixes.length];
+      const actualSuffix = parts[2];
       
-      if (parts[2] !== expectedSuffix) {
+      console.log("Expected suffix:", expectedSuffix, "Actual suffix:", actualSuffix);
+      
+      if (actualSuffix !== expectedSuffix) {
+        console.log("Suffix mismatch");
         return res.status(401).json({ error: "Invalid access code" });
       }
 
+      console.log("Access code validated successfully");
       res.json({ valid: true, message: "Access code verified" });
 
     } catch (error) {
