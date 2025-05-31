@@ -231,7 +231,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
 
     // Check audio duration
     const audio = new Audio()
-    audio.onloadedmetadata = () => {
+    audio.onloadedmetadata = async () => {
       if (!isMounted.current) return
 
       const duration = audio.duration
@@ -246,13 +246,13 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
       // Check voice slots before upload
       setIsUploading(true)
 
-      // Check available voice slots first
+      // Check available voice slots first - cap at 5
       try {
         const slotsResponse = await fetch("/api/voice/slots")
         if (slotsResponse.ok) {
           const slotsData = await slotsResponse.json()
-          if (slotsData.available <= 0) {
-            setUploadError(`Voice slots full (${slotsData.used}/${slotsData.limit}). Please wait or delete unused voices.`)
+          if (slotsData.used >= 5) {
+            setUploadError("VOICE LIMIT REACHED (5)")
             setIsUploading(false)
             return
           }
@@ -492,10 +492,9 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     <section id="demo-workspace" className="py-12 min-h-screen" ref={ref}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold cosmic-glow">Create Your Replica</h1>
           <button 
             onClick={onSignOut}
-            className="secondary-button px-4 py-2 rounded-lg text-white"
+            className="secondary-button px-4 py-2 rounded-lg text-white ml-auto"
           >
             Sign Out
           </button>
