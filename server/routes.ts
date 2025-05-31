@@ -8,8 +8,8 @@ const OPENAI_API_KEY = "sk-proj-HVm-6p8B6Jn5SuAiEM3XZJjs2NEcgcv3zELqug7f-tf0cSe0
 const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Access code authentication
-  app.post("/api/auth/access-code", async (req, res) => {
+  // Validate access code (step 1)
+  app.post("/api/auth/validate-code", async (req, res) => {
     try {
       const { accessCode } = req.body;
       
@@ -42,19 +42,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid access code" });
       }
 
-      // Create or get user based on access code
-      const email = `user${sequenceNum.toString().padStart(4, '0')}@inspirt.ai`;
-      let user = await storage.getUserByEmail(email);
+      res.json({ valid: true, message: "Access code verified" });
+
+    } catch (error) {
+      console.error("Access code validation error:", error);
+      res.status(500).json({ error: "Validation failed" });
+    }
+  });
+
+  // Register with access code (step 2)
+  app.post("/api/auth/register-with-code", async (req, res) => {
+    try {
+      const { accessCode, email, password } = req.body;
       
-      if (!user) {
-        const hashedPassword = await bcrypt.hash(accessCode, 10);
-        user = await storage.createUser({
-          email: email,
-          password: hashedPassword,
-        });
+      if (!accessCode || !email || !password) {
+        return res.status(400).json({ error: "All fields required" });
       }
 
-      req.session.userId = user.id;
+      // Re-validate access code
+      const codePattern = /^INSP-\d{4}-[A-Z]{4}$/;
+      if (!codePattern.test(accessCode)) {
+        return res.status(401).json({ error: "Invalid access code" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Create user
+      const user = await storage.createUser({ 
+        email, 
+        password: hashedPassword 
+      });
+      
       res.json({ 
         user: { 
           id: user.id, 
@@ -65,8 +90,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error("Access code auth error:", error);
-      res.status(500).json({ error: "Authentication failed" });
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Registration failed" });
     }
   });
 
