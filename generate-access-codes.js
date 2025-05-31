@@ -1,37 +1,17 @@
 // Access Code Generator for Inspirt Labs
-// Generates 1000+ unique access codes following INSP-XXXX-YYYY pattern
+// Generates access codes following INSP-XXXX-YYYY pattern
 
 import fs from 'fs';
 import path from 'path';
 
-// Extended suffix list for maximum uniqueness
+// Simple suffix list - exactly 26 NATO phonetic alphabet codes
 const suffixes = [
-  // NATO Phonetic Alphabet
-  "ALFA", "BETA", "GAMA", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
+  "ALFA", "BETA", "CHAR", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
   "KILO", "LIMA", "MIKE", "NOVA", "OSCA", "PAPA", "QUBE", "ROME", "SIER", "TANG",
-  "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU",
-  
-  // Tech/Space Terms
-  "APEX", "CORE", "FLUX", "HAWK", "IRON", "JADE", "KING", "LYNX", "MARS", "NEON",
-  "OPUS", "PEAK", "QUAD", "RUSH", "SYNC", "TIDE", "UNIX", "VOLT", "WAVE", "XENO",
-  "YAML", "ZERO", "ATOM", "BYTE", "CODE", "DATA", "EDGE", "FIRE", "GRID", "HASH",
-  
-  // Space/Cosmic Terms
-  "STAR", "VOID", "BEAM", "COIL", "DAWN", "EONS", "FLUX", "GLOW", "HALO", "IONS",
-  "JETS", "KNOT", "LENS", "MOON", "NODE", "ORBS", "POLE", "QARK", "RAYS", "SPIN",
-  "TWIN", "UNIT", "VIBE", "WARP", "ZONE", "ARCH", "BIND", "CELL", "DECK", "EMIT",
-  
-  // Premium Tech
-  "FLOW", "GEAR", "HOPE", "IDEA", "JACK", "KEEP", "LEAP", "MIND", "NEXT", "OPEN",
-  "PATH", "QUIT", "RISE", "SOUL", "TIME", "UBER", "VIEW", "WILD", "ZOOM", "ABLE",
-  "BOLD", "COOL", "DEEP", "EPIC", "FAST", "GOOD", "HIGH", "LIVE", "MOVE", "NICE",
-  
-  // Abstract Concepts
-  "PURE", "REAL", "SAFE", "TRUE", "WISE", "CALM", "DARK", "EASY", "FREE", "HUGE",
-  "KIND", "LAST", "MEGA", "NEAR", "ONLY", "PLUS", "RICH", "SLIM", "TALL", "VAST"
+  "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU"
 ];
 
-function generateAccessCodes(count = 1000) {
+function generateAccessCodes(count = 100) {
   const codes = [];
   
   for (let i = 1; i <= count; i++) {
@@ -43,7 +23,6 @@ function generateAccessCodes(count = 1000) {
       code: code,
       sequence: i,
       suffix: suffix,
-      email: `user${sequence}@inspirt.ai`,
       active: true,
       createdAt: new Date().toISOString()
     });
@@ -104,14 +83,14 @@ function saveToFiles(codes, adminCodes) {
 function main() {
   console.log('Generating Inspirt Labs Access Codes...');
   
-  const userCodes = generateAccessCodes(1000);
+  const userCodes = generateAccessCodes(100);
   const adminCodes = generateAdminCodes();
   saveToFiles(userCodes, adminCodes);
 
   console.log(`Generated ${userCodes.length} user codes + ${adminCodes.length} admin codes`);
   console.log('Files saved to: ./generated-codes/');
   
-  console.log('\nSample Access Codes:');
+  console.log('\nFirst 10 Access Codes:');
   userCodes.slice(0, 10).forEach(code => {
     console.log(`  ${code.code}`);
   });
