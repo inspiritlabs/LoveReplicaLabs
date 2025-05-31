@@ -288,6 +288,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Voice tracking for auto-deletion
+  const voiceCreationTimes = new Map<string, number>();
+
+  // Cleanup function to delete old voices
+  const cleanupOldVoices = async () => {
+    const now = Date.now();
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    for (const [voiceId, creationTime] of voiceCreationTimes.entries()) {
+      if (now - creationTime >= fiveMinutes) {
+        try {
+          console.log(`Auto-deleting voice ${voiceId} after 5 minutes`);
+          
+          const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
+            method: "DELETE",
+            headers: { "xi-api-key": ELEVEN_API_KEY }
+          });
+
+          if (response.ok) {
+            console.log(`Successfully auto-deleted voice ${voiceId}`);
+            voiceCreationTimes.delete(voiceId);
+          } else {
+            console.error(`Failed to auto-delete voice ${voiceId}:`, response.status);
+          }
+        } catch (error) {
+          console.error(`Error auto-deleting voice ${voiceId}:`, error);
+        }
+      }
+    }
+  };
+
+  // Run cleanup every minute
+  setInterval(cleanupOldVoices, 60 * 1000);
+
   // Voice upload and creation endpoint
   app.post("/api/voice/create", async (req, res) => {
     try {
@@ -351,8 +385,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const data = JSON.parse(responseText);
-      console.log("Voice created successfully:", data.voice_id);
-      res.json({ voiceId: data.voice_id });
+      const voiceId = data.voice_id;
+      
+      // Track voice creation time for auto-deletion
+      voiceCreationTimes.set(voiceId, Date.now());
+      
+      console.log(`Voice created successfully: ${voiceId} - will be auto-deleted in 5 minutes`);
+      res.json({ 
+        voiceId: voiceId,
+        autoDeleteIn: "5 minutes"
+      });
 
     } catch (error) {
       console.error("Voice creation error:", error);
@@ -380,6 +422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(response.status).json({ error: "Failed to delete voice" });
       }
 
+      // Remove from tracking when manually deleted
+      voiceCreationTimes.delete(voiceId);
+      
       res.json({ success: true, message: "Voice deleted successfully" });
 
     } catch (error) {
