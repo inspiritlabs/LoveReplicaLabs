@@ -50,8 +50,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid access code" });
       }
 
-      console.log("Access code validated successfully");
-      res.json({ valid: true, message: "Access code verified" });
+      // Check if access code is already used
+      const isUsed = await storage.isAccessCodeUsed(accessCode);
+      if (isUsed) {
+        console.log("Access code already used, returning login option");
+        return res.json({ 
+          valid: true, 
+          alreadyUsed: true, 
+          message: "Access code already used. Please login with your email and password." 
+        });
+      }
+
+      console.log("Access code validated successfully for new registration");
+      res.json({ valid: true, alreadyUsed: false, message: "Access code verified" });
 
     } catch (error) {
       console.error("Access code validation error:", error);
@@ -104,6 +115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email, 
         password: hashedPassword 
       });
+      
+      // Mark access code as used
+      await storage.markAccessCodeAsUsed(accessCode, user.id);
       
       res.json({ 
         user: { 
