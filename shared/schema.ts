@@ -81,5 +81,4 @@ export type InsertReplica = z.infer<typeof insertReplicaSchema>;
 export type Replica = typeof replicas.$inferSelect;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
-export type AccessCode = typeof accessCodes.$inferSelect;
-export type InsertAccessCode = typeof accessCodes.$inferInsert;
+

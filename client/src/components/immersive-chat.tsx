@@ -22,7 +22,9 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>(replica.photos || []);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [hasReachedLimit, setHasReachedLimit] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const MAX_MESSAGES = 5;
   const audioRef = useRef<HTMLAudioElement>(null);
   const queryClient = useQueryClient();
 
@@ -75,7 +77,15 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
   };
 
   const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || hasReachedLimit) return;
+    
+    // Count user messages only
+    const userMessageCount = messages.filter(msg => msg.role === "user").length;
+    
+    if (userMessageCount >= MAX_MESSAGES) {
+      setHasReachedLimit(true);
+      return;
+    }
     
     const userMessage: Message = {
       role: "user",
@@ -85,6 +95,22 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
     
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
+    
+    // Check if this is the 5th message
+    if (userMessageCount + 1 >= MAX_MESSAGES) {
+      setHasReachedLimit(true);
+      // Add payment invitation message after a short delay
+      setTimeout(() => {
+        const paymentMessage: Message = {
+          role: "assistant",
+          content: "I've truly enjoyed our conversation together. There's so much more I'd love to share with you - deeper memories, more stories, and continued connection. To keep talking and exploring all the moments we could create together, would you like to explore our plans? I'm here whenever you're ready to continue our journey.",
+          id: (Date.now() + 1).toString(),
+        };
+        setMessages(prev => [...prev, paymentMessage]);
+      }, 1000);
+      return;
+    }
+    
     sendMessageMutation.mutate(userMessage.content);
   };
 
@@ -203,6 +229,22 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
                   }}
                 >
                   <p className="text-white leading-relaxed font-medium">{message.content}</p>
+                  
+                  {/* Show Explore Plans button for payment invitation message */}
+                  {message.role === "assistant" && hasReachedLimit && message.content.includes("explore our plans") && (
+                    <div className="mt-4 flex justify-center">
+                      <button 
+                        className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+                        onClick={() => {
+                          // TODO: Navigate to plans page when implemented
+                          alert("Plans page coming soon!");
+                        }}
+                      >
+                        Explore Plans
+                      </button>
+                    </div>
+                  )}
+                  
                   {message.audioUrl && (
                     <div className="mt-3 flex items-center gap-2">
                       <div className="flex gap-1">
@@ -238,32 +280,45 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       {/* Input Area */}
       <div className="absolute bottom-0 left-0 right-0 z-20 p-6">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-black/20 backdrop-blur-xl rounded-3xl border border-white/10 p-4">
-            <div className="flex items-end gap-4">
-              <div className="flex-1">
-                <textarea
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder="Type your message..."
-                  className="w-full bg-transparent text-white placeholder-white/50 border-none outline-none resize-none min-h-[24px] max-h-32"
-                  rows={1}
-                />
-              </div>
-              <button
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || sendMessageMutation.isPending}
-                className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full text-white hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-5 h-5" />
-              </button>
+          {hasReachedLimit ? (
+            <div className="bg-black/20 backdrop-blur-xl rounded-3xl border border-white/10 p-6 text-center">
+              <p className="text-white/70 text-sm mb-2">You've reached your free message limit</p>
+              <p className="text-white/50 text-xs">Explore our plans to continue the conversation</p>
             </div>
-          </div>
+          ) : (
+            <div className="bg-black/20 backdrop-blur-xl rounded-3xl border border-white/10 p-4">
+              <div className="flex items-end gap-4">
+                <div className="flex-1">
+                  <textarea
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Type your message..."
+                    className="w-full bg-transparent text-white placeholder-white/50 border-none outline-none resize-none min-h-[24px] max-h-32"
+                    rows={1}
+                  />
+                </div>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || sendMessageMutation.isPending}
+                  className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full text-white hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+              {/* Message counter */}
+              <div className="mt-2 text-right">
+                <span className="text-xs text-white/40">
+                  {messages.filter(msg => msg.role === "user").length}/{MAX_MESSAGES} messages
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
