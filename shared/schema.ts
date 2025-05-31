@@ -9,16 +9,6 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   credits: integer("credits").default(10),
   isAdmin: boolean("is_admin").default(false),
-  accessCode: text("access_code"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const accessCodes = pgTable("access_codes", {
-  id: serial("id").primaryKey(),
-  code: text("code").notNull().unique(),
-  isUsed: boolean("is_used").default(false),
-  userId: integer("user_id").references(() => users.id),
-  usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -49,19 +39,8 @@ export const chatMessages = pgTable("chat_messages", {
 });
 
 // Relations
-export const usersRelations = relations(users, ({ many, one }) => ({
+export const usersRelations = relations(users, ({ many }) => ({
   replicas: many(replicas),
-  accessCodeRecord: one(accessCodes, {
-    fields: [users.id],
-    references: [accessCodes.userId],
-  }),
-}));
-
-export const accessCodesRelations = relations(accessCodes, ({ one }) => ({
-  user: one(users, {
-    fields: [accessCodes.userId],
-    references: [users.id],
-  }),
 }));
 
 export const replicasRelations = relations(replicas, ({ one, many }) => ({

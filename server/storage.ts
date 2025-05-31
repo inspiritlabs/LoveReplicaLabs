@@ -6,8 +6,7 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  getUserByAccessCode(accessCode: string): Promise<User | undefined>;
-  createUser(user: InsertUser & { accessCode?: string }): Promise<User>;
+  createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserCredits(userId: number, credits: number): Promise<User | undefined>;
   
