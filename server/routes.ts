@@ -245,6 +245,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check ElevenLabs voice slots
+  app.get("/api/voice/slots", async (req, res) => {
+    try {
+      if (!ELEVEN_API_KEY) {
+        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+      }
+
+      // Get user info to check voice limits
+      const userResponse = await fetch("https://api.elevenlabs.io/v1/user", {
+        headers: { "xi-api-key": ELEVEN_API_KEY }
+      });
+
+      if (!userResponse.ok) {
+        throw new Error("Failed to fetch user info");
+      }
+
+      const userData = await userResponse.json();
+      
+      // Get all voices to count current usage
+      const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
+        headers: { "xi-api-key": ELEVEN_API_KEY }
+      });
+
+      if (!voicesResponse.ok) {
+        throw new Error("Failed to fetch voices");
+      }
+
+      const voicesData = await voicesResponse.json();
+      const customVoices = voicesData.voices.filter(voice => voice.category === "cloned");
+      
+      res.json({
+        used: customVoices.length,
+        limit: userData.subscription?.voice_limit || 10,
+        available: (userData.subscription?.voice_limit || 10) - customVoices.length,
+        voices: customVoices
+      });
+
+    } catch (error) {
+      console.error("Voice slots check error:", error);
+      res.status(500).json({ error: "Failed to check voice slots" });
+    }
+  });
+
   // Voice upload and creation endpoint
   app.post("/api/voice/create", async (req, res) => {
     try {
@@ -256,6 +299,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!ELEVEN_API_KEY) {
         return res.status(500).json({ error: "ElevenLabs API key not configured" });
+      }
+
+      // Check voice slots before creating
+      const slotsResponse = await fetch(`${req.protocol}://${req.get('host')}/api/voice/slots`);
+      if (slotsResponse.ok) {
+        const slotsData = await slotsResponse.json();
+        if (slotsData.available <= 0) {
+          return res.status(429).json({ 
+            error: "Voice slots full. Please wait or delete unused voices.", 
+            slotsInfo: slotsData 
+          });
+        }
       }
 
       // Convert base64 to buffer
@@ -302,6 +357,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Voice creation error:", error);
       res.status(500).json({ error: (error as Error).message || "Failed to create voice" });
+    }
+  });
+
+  // Delete voice endpoint
+  app.delete("/api/voice/:voiceId", async (req, res) => {
+    try {
+      const { voiceId } = req.params;
+      
+      if (!ELEVEN_API_KEY) {
+        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+      }
+
+      const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
+        method: "DELETE",
+        headers: { "xi-api-key": ELEVEN_API_KEY }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Voice deletion error:", response.status, errorText);
+        return res.status(response.status).json({ error: "Failed to delete voice" });
+      }
+
+      res.json({ success: true, message: "Voice deleted successfully" });
+
+    } catch (error) {
+      console.error("Voice deletion error:", error);
+      res.status(500).json({ error: "Failed to delete voice" });
     }
   });
 

@@ -243,8 +243,23 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
         return
       }
 
-      // Start upload and voice creation
+      // Check voice slots before upload
       setIsUploading(true)
+
+      // Check available voice slots first
+      try {
+        const slotsResponse = await fetch("/api/voice/slots")
+        if (slotsResponse.ok) {
+          const slotsData = await slotsResponse.json()
+          if (slotsData.available <= 0) {
+            setUploadError(`Voice slots full (${slotsData.used}/${slotsData.limit}). Please wait or delete unused voices.`)
+            setIsUploading(false)
+            return
+          }
+        }
+      } catch (error) {
+        console.warn("Could not check voice slots:", error)
+      }
 
       // Create voice with ElevenLabs
       const reader = new FileReader()

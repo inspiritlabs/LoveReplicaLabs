@@ -163,7 +163,7 @@ export default function Admin() {
               className="w-full p-4 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
               onKeyPress={(e) => e.key === "Enter" && handleLogin()}
             />
-            
+
             <button
               onClick={handleLogin}
               className="w-full primary-button px-6 py-4 rounded-lg font-semibold text-white"
@@ -215,7 +215,7 @@ export default function Admin() {
         {activeTab === "users" && (
           <div className="glass-card rounded-xl p-8">
             <h2 className="text-2xl font-semibold mb-6">User Management</h2>
-          
+
             {isLoading ? (
               <div className="text-center py-8">Loading users...</div>
             ) : (
@@ -303,7 +303,7 @@ export default function Admin() {
         {activeTab === "chats" && (
           <div className="glass-card rounded-xl p-8">
             <h2 className="text-2xl font-semibold mb-6">Chat History</h2>
-            
+
             {chats && chats.length > 0 ? (
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {chats.map((chat) => (
@@ -345,7 +345,7 @@ export default function Admin() {
         {activeTab === "stats" && (
           <div className="glass-card rounded-xl p-8">
             <h2 className="text-2xl font-semibold mb-6">System Statistics</h2>
-            
+
             {stats ? (
               <div className="space-y-6">
                 {/* Overview Cards */}
@@ -451,7 +451,7 @@ export default function Admin() {
         {activeTab === "voices" && (
           <div className="glass-card rounded-xl p-8">
             <h2 className="text-2xl font-semibold mb-6">Voice Uploads</h2>
-            
+
             {replicas && replicas.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {replicas.map((replica) => (
