@@ -27,31 +27,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parts = accessCode.split('-');
       const sequenceNum = parseInt(parts[1]);
       
-      // Generate valid suffix based on sequence - MUST match generator exactly
+      // Simple suffix list - exactly 26 NATO phonetic alphabet codes  
       const suffixes = [
-        // NATO Phonetic Alphabet
-        "ALFA", "BETA", "GAMA", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
+        "ALFA", "BETA", "CHAR", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
         "KILO", "LIMA", "MIKE", "NOVA", "OSCA", "PAPA", "QUBE", "ROME", "SIER", "TANG",
-        "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU",
-        
-        // Tech/Space Terms
-        "APEX", "CORE", "FLUX", "HAWK", "IRON", "JADE", "KING", "LYNX", "MARS", "NEON",
-        "OPUS", "PEAK", "QUAD", "RUSH", "SYNC", "TIDE", "UNIX", "VOLT", "WAVE", "XENO",
-        "YAML", "ZERO", "ATOM", "BYTE", "CODE", "DATA", "EDGE", "FIRE", "GRID", "HASH",
-        
-        // Space/Cosmic Terms
-        "STAR", "VOID", "BEAM", "COIL", "DAWN", "EONS", "FLUX", "GLOW", "HALO", "IONS",
-        "JETS", "KNOT", "LENS", "MOON", "NODE", "ORBS", "POLE", "QARK", "RAYS", "SPIN",
-        "TWIN", "UNIT", "VIBE", "WARP", "ZONE", "ARCH", "BIND", "CELL", "DECK", "EMIT",
-        
-        // Premium Tech
-        "FLOW", "GEAR", "HOPE", "IDEA", "JACK", "KEEP", "LEAP", "MIND", "NEXT", "OPEN",
-        "PATH", "QUIT", "RISE", "SOUL", "TIME", "UBER", "VIEW", "WILD", "ZOOM", "ABLE",
-        "BOLD", "COOL", "DEEP", "EPIC", "FAST", "GOOD", "HIGH", "LIVE", "MOVE", "NICE",
-        
-        // Abstract Concepts
-        "PURE", "REAL", "SAFE", "TRUE", "WISE", "CALM", "DARK", "EASY", "FREE", "HUGE",
-        "KIND", "LAST", "MEGA", "NEAR", "ONLY", "PLUS", "RICH", "SLIM", "TALL", "VAST"
+        "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU"
       ];
       
       const expectedSuffix = suffixes[(sequenceNum - 1) % suffixes.length];
@@ -88,29 +68,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sequenceNum = parseInt(parts[1]);
       
       const suffixes = [
-        // NATO Phonetic Alphabet
-        "ALFA", "BETA", "GAMA", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
+        "ALFA", "BETA", "CHAR", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
         "KILO", "LIMA", "MIKE", "NOVA", "OSCA", "PAPA", "QUBE", "ROME", "SIER", "TANG",
-        "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU",
-        
-        // Tech/Space Terms
-        "APEX", "CORE", "FLUX", "HAWK", "IRON", "JADE", "KING", "LYNX", "MARS", "NEON",
-        "OPUS", "PEAK", "QUAD", "RUSH", "SYNC", "TIDE", "UNIX", "VOLT", "WAVE", "XENO",
-        "YAML", "ZERO", "ATOM", "BYTE", "CODE", "DATA", "EDGE", "FIRE", "GRID", "HASH",
-        
-        // Space/Cosmic Terms
-        "STAR", "VOID", "BEAM", "COIL", "DAWN", "EONS", "FLUX", "GLOW", "HALO", "IONS",
-        "JETS", "KNOT", "LENS", "MOON", "NODE", "ORBS", "POLE", "QARK", "RAYS", "SPIN",
-        "TWIN", "UNIT", "VIBE", "WARP", "ZONE", "ARCH", "BIND", "CELL", "DECK", "EMIT",
-        
-        // Premium Tech
-        "FLOW", "GEAR", "HOPE", "IDEA", "JACK", "KEEP", "LEAP", "MIND", "NEXT", "OPEN",
-        "PATH", "QUIT", "RISE", "SOUL", "TIME", "UBER", "VIEW", "WILD", "ZOOM", "ABLE",
-        "BOLD", "COOL", "DEEP", "EPIC", "FAST", "GOOD", "HIGH", "LIVE", "MOVE", "NICE",
-        
-        // Abstract Concepts
-        "PURE", "REAL", "SAFE", "TRUE", "WISE", "CALM", "DARK", "EASY", "FREE", "HUGE",
-        "KIND", "LAST", "MEGA", "NEAR", "ONLY", "PLUS", "RICH", "SLIM", "TALL", "VAST"
+        "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU"
       ];
       
       const expectedSuffix = suffixes[(sequenceNum - 1) % suffixes.length];
