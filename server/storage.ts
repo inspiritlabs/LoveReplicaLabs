@@ -6,9 +6,14 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUserByAccessCode(accessCode: string): Promise<User | undefined>;
+  createUser(user: InsertUser & { accessCode?: string }): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserCredits(userId: number, credits: number): Promise<User | undefined>;
+  
+  // Access code tracking
+  isAccessCodeUsed(accessCode: string): Promise<boolean>;
+  markAccessCodeAsUsed(accessCode: string, userId: number): Promise<void>;
   
   // Replica methods
   createReplica(replica: InsertReplica): Promise<Replica>;
@@ -32,6 +37,9 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private usedAccessCodes = new Set<string>();
+  private accessCodeUsers = new Map<string, number>();
+
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -40,6 +48,21 @@ export class DatabaseStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
+  }
+
+  async getUserByAccessCode(accessCode: string): Promise<User | undefined> {
+    const userId = this.accessCodeUsers.get(accessCode);
+    if (!userId) return undefined;
+    return this.getUser(userId);
+  }
+
+  async isAccessCodeUsed(accessCode: string): Promise<boolean> {
+    return this.usedAccessCodes.has(accessCode);
+  }
+
+  async markAccessCodeAsUsed(accessCode: string, userId: number): Promise<void> {
+    this.usedAccessCodes.add(accessCode);
+    this.accessCodeUsers.set(accessCode, userId);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
