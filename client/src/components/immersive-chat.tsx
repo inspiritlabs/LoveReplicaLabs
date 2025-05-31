@@ -34,6 +34,18 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
 
   useEffect(scrollToBottom, [messages]);
 
+  // Auto-launch fullscreen
+  useEffect(() => {
+    const requestFullscreen = () => {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {
+          // Silently handle fullscreen rejection
+        });
+      }
+    };
+    requestFullscreen();
+  }, []);
+
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       const response = await fetch(`/api/replicas/${replica.id}/chat`, {
@@ -178,6 +190,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
           <div className="text-center">
             <h1 className="text-xl font-semibold text-white">{replica.name}</h1>
             <p className="text-sm text-white/60">Digital Replica</p>
+            <div className="text-white/70 text-sm">{messages.length}</div>
           </div>
           <button
             onClick={() => setShowPhotoUpload(!showPhotoUpload)}
