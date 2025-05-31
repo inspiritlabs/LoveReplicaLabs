@@ -107,6 +107,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email already registered" });
       }
 
+      // Double-check if access code was already used
+      const isUsed = await storage.isAccessCodeUsed(accessCode);
+      if (isUsed) {
+        return res.status(400).json({ error: "Access code already used" });
+      }
+
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
       
