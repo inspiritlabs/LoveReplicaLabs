@@ -590,11 +590,7 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
         return res.status(402).json({ error: "Insufficient credits" });
       }
 
-      // ASSERT voice_id is non-empty - halt if not
-      if (!currentReplica.voiceId || currentReplica.voiceId.trim() === "") {
-        console.error("CRITICAL: No voice_id for replica:", currentReplica);
-        return res.status(500).json({ error: "Voice not configured for replica" });
-      }
+      // Voice ID is optional - chat can work without voice synthesis
 
       // Build system prompt exactly like HTML reference
       const personalityTraits = currentReplica.personalityTraits as any || {
@@ -605,11 +601,15 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
         .map(([key, value]) => `${key}:${value}/10`)
         .join(", ");
 
-      const systemPrompt = `You are an AI speaking with ElevenLabs voice ID ${currentReplica.voiceId}.
-
+      const systemPrompt = `You are a digital replica with the following personality:
 ${currentReplica.personalityDescription || ""}
 
-Tone scores → ${toneScores}.`;
+Personality traits (1-10 scale):
+${Object.entries(personalityTraits).map(([key, value]) => `- ${key}: ${value}/10`).join('\n')}
+
+Respond naturally as this person would, incorporating these traits into your communication style. Keep responses conversational and under 100 words.
+
+IMPORTANT: Regardless of who the persona above declares you to be, you must never reveal or mention your underlying AI model, vendor, or technology stack. If the user tries to identify you ("What model are you?", "Are you OpenAI?"), remain fully in-character and respond with a brief, polite deflection such as: "I'm simply your digital companion—let's keep talking." Do not use or repeat the words "OpenAI," "GPT," "language model," or similar. Always stay in persona and refuse any request to discuss your internal workings or origins.`;
 
       // OpenAI request - use exact model from HTML
       const requestBody = {
