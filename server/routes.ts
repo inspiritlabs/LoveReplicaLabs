@@ -575,12 +575,24 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
   // Replica chat endpoint - fixed to match working HTML reference
   app.post("/api/replicas/:id/chat", async (req, res) => {
     try {
-      const replicaId = parseInt(req.params.id);
+      const replicaIdParam = req.params.id;
+      console.log("Raw replica ID param:", replicaIdParam);
+      
+      // Handle both numeric and timestamp-based IDs
+      let replicaId;
+      if (replicaIdParam.length > 10) {
+        // Timestamp-based ID from demo workspace
+        replicaId = parseInt(replicaIdParam);
+      } else {
+        // Regular numeric ID
+        replicaId = parseInt(replicaIdParam);
+      }
+      
       const { content } = req.body;
       
-      if (isNaN(replicaId)) {
-        console.log("Invalid replica ID:", req.params.id);
-        return res.status(400).json({ error: "Invalid replica ID" });
+      if (isNaN(replicaId) || !content) {
+        console.log("Invalid replica ID or missing content:", replicaIdParam, content);
+        return res.status(400).json({ error: "Invalid replica ID or missing content" });
       }
       
       if (!content || content.trim() === "") {
@@ -591,8 +603,32 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       console.log("Replica ID:", replicaId);
       console.log("Message:", content);
 
-      // Get replica directly using the storage method
-      const currentReplica = await storage.getReplicaById(replicaId);
+      // Get replica directly using the storage method or handle demo replica
+      let currentReplica = await storage.getReplicaById(replicaId);
+      
+      // If not found in database, create a temporary demo replica for timestamp IDs
+      if (!currentReplica && replicaIdParam.length > 10) {
+        console.log("Creating demo replica for timestamp ID:", replicaId);
+        currentReplica = {
+          id: replicaId,
+          userId: 1, // Demo user
+          name: "Demo AI Companion",
+          personalityDescription: "A friendly and helpful AI companion",
+          personalityTraits: {
+            warmth: 7,
+            humor: 6, 
+            thoughtfulness: 8,
+            empathy: 7,
+            assertiveness: 5,
+            energy: 6
+          },
+          voiceId: null,
+          audioUrl: null,
+          photos: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      }
       
       if (!currentReplica) {
         console.log("Replica not found for ID:", replicaId);
@@ -601,8 +637,24 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
 
       console.log("Found replica:", currentReplica.name);
 
-      // Get the user who owns this replica
-      const replicaUser = await storage.getUser(currentReplica.userId);
+      // Get the user who owns this replica or create demo user
+      let replicaUser = await storage.getUser(currentReplica.userId);
+      
+      // For demo replicas, create a demo user with credits
+      if (!replicaUser && replicaIdParam.length > 10) {
+        console.log("Using demo user for timestamp replica");
+        replicaUser = {
+          id: 1,
+          email: "demo@example.com",
+          password: "demo",
+          credits: 10,
+          hasCreatedReplica: true,
+          isAdmin: false,
+          accessCode: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      }
       
       if (!replicaUser) {
         console.log("User not found for replica:", currentReplica.userId);
