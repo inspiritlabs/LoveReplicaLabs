@@ -601,7 +601,23 @@ Respond naturally as this person would, incorporating these traits into your com
 
 IMPORTANT: Regardless of who the persona above declares you to be, you must never reveal or mention your underlying AI model, vendor, or technology stack. If the user tries to identify you ("What model are you?", "Are you OpenAI?"), remain fully in-character and respond with a brief, polite deflection such as: "I'm simply your digital companion—let's keep talking." Do not use or repeat the words "OpenAI," "GPT," "language model," or similar. Always stay in persona and refuse any request to discuss your internal workings or origins.`;
 
-      console.log("Sending request to OpenAI with system prompt length:", systemPrompt.length);
+      console.log("=== OPENAI REQUEST DEBUG ===");
+      console.log("API Key present:", OPENAI_API_KEY ? `${OPENAI_API_KEY.slice(0,8)}...` : "MISSING");
+      console.log("Model:", "gpt-4o-mini");
+      console.log("System prompt length:", systemPrompt.length);
+      console.log("User message:", content);
+
+      const requestBody = {
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: content }
+        ],
+        max_tokens: 150,
+        temperature: 0.8,
+      };
+
+      console.log("Request JSON:", JSON.stringify(requestBody, null, 2));
 
       // Call OpenAI API
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -610,20 +626,14 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
           "Authorization": `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: content }
-          ],
-          max_tokens: 150,
-          temperature: 0.8,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const openaiResponseText = await openaiResponse.text();
-      console.log("OpenAI response status:", openaiResponse.status);
-      console.log("OpenAI response:", openaiResponseText.substring(0, 200));
+      console.log("=== OPENAI RESPONSE DEBUG ===");
+      console.log("Status:", openaiResponse.status);
+      console.log("Headers:", Object.fromEntries(openaiResponse.headers.entries()));
+      console.log("Full response:", openaiResponseText);
 
       if (!openaiResponse.ok) {
         console.error("OpenAI API error:", openaiResponse.status, openaiResponseText);
@@ -640,7 +650,10 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       // Generate audio with ElevenLabs if voice ID exists
       if (currentReplica.voiceId) {
         try {
-          console.log("Generating voice with ElevenLabs for voice ID:", currentReplica.voiceId);
+          console.log("=== ELEVENLABS REQUEST DEBUG ===");
+          console.log("API Key present:", ELEVEN_API_KEY ? `${ELEVEN_API_KEY.slice(0,8)}...` : "MISSING");
+          console.log("Voice ID:", currentReplica.voiceId);
+          console.log("Text to synthesize:", aiMessage);
           
           const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
             method: "POST",
@@ -658,16 +671,20 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
             }),
           });
 
-          console.log("ElevenLabs TTS response status:", elevenResponse.status);
+          console.log("=== ELEVENLABS RESPONSE DEBUG ===");
+          console.log("Status:", elevenResponse.status);
+          console.log("Headers:", Object.fromEntries(elevenResponse.headers.entries()));
 
           if (elevenResponse.ok) {
             const audioBuffer = await elevenResponse.arrayBuffer();
             const audioBase64 = Buffer.from(audioBuffer).toString('base64');
             audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
             console.log("Voice generation successful, audio size:", audioBuffer.byteLength, "bytes");
+            console.log("Audio URL created:", audioUrl.slice(0, 50) + "...");
           } else {
             const errorText = await elevenResponse.text();
-            console.error("ElevenLabs TTS error:", elevenResponse.status, errorText);
+            console.error("ElevenLabs TTS error:", elevenResponse.status, errorText.slice(0, 120));
+            console.error("Full error response:", errorText);
           }
         } catch (voiceError) {
           console.error("Voice generation failed:", voiceError);
