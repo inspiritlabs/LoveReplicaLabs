@@ -73,13 +73,26 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       // Create assistant message from API response
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.message || data.content || "I received your message.",
-        id: (Date.now() + 1).toString(),
-        audioUrl: data.audioUrl || null,
+        content: data.aiMessage?.content || "I received your message.",
+        id: data.aiMessage?.id || (Date.now() + 1).toString(),
+        audioUrl: data.aiMessage?.audioUrl || null,
       };
       
       // Add assistant message to chat
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Check if user has reached message limit after this response
+      const userMessageCount = messages.filter(msg => msg.role === "user").length + 1; // +1 for the message we just sent
+      if (userMessageCount >= MAX_MESSAGES && data.creditsRemaining <= 0) {
+        setHasReachedLimit(true);
+        // Add payment invitation message
+        const paymentMessage: Message = {
+          role: "assistant",
+          content: "You've reached your free message limit! To continue our conversation and explore all features, please explore our plans for unlimited access.",
+          id: (Date.now() + 2).toString(),
+        };
+        setMessages(prev => [...prev, paymentMessage]);
+      }
       
       // Play audio if available
       if (assistantMessage.audioUrl) {
