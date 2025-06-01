@@ -3,9 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { ArrowLeft, Send, Volume2, VolumeX } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -23,11 +21,10 @@ interface ImmersiveChatProps {
 export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,105 +43,6 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       }
     };
   }, [currentAudio]);
-
-  const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
-      console.log("Sending message to replica:", replica.id);
-      const response = await fetch(`/api/replicas/${replica.id}/chat`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({ content: content.trim() }),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Chat API error:", response.status, errorText);
-        let errorMessage;
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || "Failed to send message";
-        } catch {
-          errorMessage = errorText || "Failed to send message";
-        }
-        throw new Error(errorMessage);
-      }
-      
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      // Add both user and AI messages
-      setMessages(prev => [
-        ...prev,
-        {
-          id: data.userMessage.id,
-          role: "user",
-          content: data.userMessage.content,
-          audioUrl: null
-        },
-        {
-          id: data.aiMessage.id,
-          role: "assistant", 
-          content: data.aiMessage.content,
-          audioUrl: data.aiMessage.audioUrl
-        }
-      ]);
-
-      // Auto-play audio if available
-      if (data.aiMessage.audioUrl) {
-        playAudio(data.aiMessage.audioUrl);
-      }
-
-      // Update user credits in cache
-      queryClient.setQueryData(['/api/users/current'], (oldData: any) => ({
-        ...oldData,
-        credits: data.creditsRemaining
-      }));
-    },
-    onError: (error: any) => {
-      console.error("Chat error:", error);
-      
-      // Handle specific error cases
-      if (error.message?.includes("402") || error.message?.includes("Insufficient credits")) {
-        const paymentMessage: Message = {
-          id: `error-${Date.now()}`,
-          role: "assistant",
-          content: "You have used all 5 messages. Upgrade or wait for next period.",
-          audioUrl: null
-        };
-        setMessages(prev => [...prev, paymentMessage]);
-      } else {
-        // Show actual error instead of generic message
-        const errorMessage: Message = {
-          id: `error-${Date.now()}`,
-          role: "assistant", 
-          content: `Error: ${error.message}`,
-          audioUrl: null
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      }
-    }
-  });
-
-  const voiceUploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("name", replica.name || "Voice Clone");
-      
-      const response = await apiRequest("/api/voice/upload", {
-        method: "POST",
-        body: formData,
-      });
-      return response;
-    },
-    onSuccess: (data) => {
-      // Update replica with new voice ID
-      queryClient.invalidateQueries(['/api/replicas']);
-    }
-  });
 
   const playAudio = (audioUrl: string) => {
     if (currentAudio) {
@@ -177,10 +75,9 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
     }
   };
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim() || sendMessageMutation.isPending) return;
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
 
-    // Add user message immediately
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -189,22 +86,58 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
     };
 
     setMessages(prev => [...prev, userMessage]);
-    
-    // Check credits before sending
-    if (user.credits <= 0) {
-      const paymentMessage: Message = {
-        id: `payment-${Date.now()}`,
-        role: "assistant",
-        content: "You have used all 5 messages. Upgrade or wait for next period.",
+    const messageContent = inputMessage.trim();
+    setInputMessage("");
+    setIsLoading(true);
+
+    try {
+      console.log("Sending message to replica:", replica.id);
+
+      const response = await fetch(`/api/replicas/${replica.id}/chat`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: messageContent }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Chat API error:", response.status, errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("Chat response:", data);
+
+      // Add AI message
+      const aiMessage: Message = {
+        id: data.aiMessage.id,
+        role: "assistant", 
+        content: data.aiMessage.content,
+        audioUrl: data.aiMessage.audioUrl
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Auto-play audio if available
+      if (data.aiMessage.audioUrl) {
+        playAudio(data.aiMessage.audioUrl);
+      }
+
+    } catch (error: any) {
+      console.error("Chat error:", error);
+
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "assistant", 
+        content: `Error: ${error.message}`,
         audioUrl: null
       };
-      setMessages(prev => [...prev, paymentMessage]);
-      setInputMessage("");
-      return;
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
-
-    sendMessageMutation.mutate(inputMessage.trim());
-    setInputMessage("");
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -240,10 +173,10 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
             </p>
           </div>
         </div>
-        
+
         {/* Credits display */}
         <div className="text-white/80 text-sm">
-          {user.credits} messages remaining
+          {user.credits || 5} messages remaining
         </div>
       </div>
 
@@ -254,7 +187,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
             <p>Start a conversation with {replica.name}</p>
           </div>
         )}
-        
+
         {messages.map((message) => (
           <div
             key={message.id}
@@ -275,14 +208,14 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
                   </>
                 )}
               </Avatar>
-              
+
               <Card className={`p-3 ${
                 message.role === "user" 
                   ? "bg-blue-600 text-white ml-2" 
                   : "bg-white/10 backdrop-blur-sm text-white mr-2"
               }`}>
                 <p className="text-sm">{message.content}</p>
-                
+
                 {message.audioUrl && (
                   <div className="mt-2 flex items-center gap-2">
                     <Button
@@ -309,8 +242,8 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
             </div>
           </div>
         ))}
-        
-        {sendMessageMutation.isPending && (
+
+        {isLoading && (
           <div className="flex justify-start">
             <div className="flex items-start gap-3 max-w-[80%]">
               <Avatar className="w-8 h-8 mt-1">
@@ -327,7 +260,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -339,26 +272,20 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={user.credits <= 0 ? "No messages remaining" : "Type a message..."}
-              disabled={sendMessageMutation.isPending || user.credits <= 0}
+              placeholder="Type a message..."
+              disabled={isLoading}
               className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pr-12"
             />
           </div>
-          
+
           <Button
             onClick={handleSendMessage}
-            disabled={!inputMessage.trim() || sendMessageMutation.isPending || user.credits <= 0}
+            disabled={!inputMessage.trim() || isLoading}
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
-        
-        {user.credits <= 0 && (
-          <p className="text-white/60 text-sm mt-2 text-center">
-            You have used all 5 messages. Upgrade to continue chatting.
-          </p>
-        )}
       </div>
     </div>
   );
