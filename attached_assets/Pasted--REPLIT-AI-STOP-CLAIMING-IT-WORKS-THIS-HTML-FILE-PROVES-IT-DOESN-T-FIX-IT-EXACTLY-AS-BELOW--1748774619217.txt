@@ -1,0 +1,58 @@
+**REPLIT AI — STOP CLAIMING “IT WORKS.”  THIS HTML FILE PROVES IT DOESN’T.  FIX IT EXACTLY AS BELOW.**
+
+---
+
+### 1 Reference implementation that actually functions
+
+Read **n.htm** (see path `/mnt/data/n.htm`). It:
+
+1. Clones voice (`/v1/voices/add`)
+2. Builds a system-prompt string
+3. Calls chat (`/v1/chat/completions`, model `gpt-4o-mini`)
+4. Streams TTS (`/v1/text-to-speech/{voiceId}/stream`)
+5. Plays audio and updates the log.&#x20;
+
+If your React stack can’t replicate this five-step flow **exactly**, your app isn’t ready.
+
+---
+
+### 2 Environment—hard-wire these keys (test only)
+
+```
+OPENAI_API_KEY  = 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
+ELEVEN_API_KEY  = sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d
+```
+
+Load them via `.env`; log the first 8 chars at startup so we know they’re present.
+
+---
+
+### 3 Mandatory fixes — **no excuses**
+
+1. **Voice-clone check**
+   • After upload, assert `voice_id` is non-empty.  If not, halt and throw.
+2. **Chat request**
+   • Use model `gpt-4o-mini`.  Any other string → reject build.
+   • Dump request + response JSON to the browser log.
+3. **TTS request**
+   • POST exactly what n.htm does; validate 200 + `audio/mpeg`.
+4. **UI state**
+   • `isProcessing` resets in `finally{}` block—never leave the UI hung.
+   • Decrement message counter only on **successful** TTS playback.
+5. **Kill the fake apology**
+   Remove the hard-coded fallback “Sorry, I can’t respond right now.”
+   Show the real error string instead.
+
+---
+
+### 4 Acceptance test (must pass before deploy)
+
+| Step        | Expected in ≤ 3 s               |
+| ----------- | ------------------------------- |
+| Upload clip | Console prints `voice_id=`      |
+| Send “Ping” | Chat reply visible, audio plays |
+| Counter     | 4 / 5 shown                     |
+| Error log   | **Empty** (no red stack traces) |
+
+If any part fails, redeploy until it passes.
+**Stop telling me it’s fine—it clearly isn’t.**
