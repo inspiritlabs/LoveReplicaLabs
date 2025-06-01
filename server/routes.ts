@@ -387,9 +387,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = JSON.parse(responseText);
       const voiceId = data.voice_id;
       
+      // ASSERT voice_id is non-empty - halt if not
+      if (!voiceId || voiceId.trim() === "") {
+        console.error("CRITICAL: ElevenLabs returned empty voice_id:", data);
+        return res.status(500).json({ error: "Voice creation failed - no voice_id returned" });
+      }
+      
       // Track voice creation time for auto-deletion
       voiceCreationTimes.set(voiceId, Date.now());
       
+      console.log(`voice_id=${voiceId}`);
       console.log(`Voice created successfully: ${voiceId} - will be auto-deleted in 5 minutes`);
       res.json({ 
         voiceId: voiceId,
@@ -660,32 +667,43 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
             headers: {
               "xi-api-key": ELEVEN_API_KEY,
               "Content-Type": "application/json",
+              "accept": "audio/mpeg",
             },
             body: JSON.stringify({
               text: aiMessage,
-              model_id: "eleven_monolingual_v1",
-              voice_settings: {
-                stability: 0.5,
-                similarity_boost: 0.5,
-              },
+              model_id: "eleven_multilingual_v2",
             }),
           });
 
           console.log("=== ELEVENLABS RESPONSE DEBUG ===");
           console.log("Status:", elevenResponse.status);
           console.log("Headers:", Object.fromEntries(elevenResponse.headers.entries()));
-
-          if (elevenResponse.ok) {
-            const audioBuffer = await elevenResponse.arrayBuffer();
-            const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-            audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
-            console.log("Voice generation successful, audio size:", audioBuffer.byteLength, "bytes");
-            console.log("Audio URL created:", audioUrl.slice(0, 50) + "...");
-          } else {
+          
+          // Validate exactly like reference: status 200 + audio/mpeg
+          const contentType = elevenResponse.headers.get('content-type') || '';
+          if (elevenResponse.status !== 200) {
             const errorText = await elevenResponse.text();
-            console.error("ElevenLabs TTS error:", elevenResponse.status, errorText.slice(0, 120));
-            console.error("Full error response:", errorText);
+            console.error("TTS error", elevenResponse.status, errorText.slice(0, 120));
+            throw new Error(`TTS error ${elevenResponse.status}`);
           }
+          
+          if (!contentType.includes('audio/mpeg')) {
+            console.error("Invalid content type:", contentType, "expected audio/mpeg");
+            throw new Error("Invalid TTS response type");
+          }
+
+          const audioBuffer = await elevenResponse.arrayBuffer();
+          
+          // Validate blob size > 1KB like reference
+          if (audioBuffer.byteLength <= 1024) {
+            console.error("Audio blob too small:", audioBuffer.byteLength, "bytes");
+            throw new Error("Invalid audio response size");
+          }
+          
+          const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+          audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
+          console.log("Voice generation successful, audio size:", audioBuffer.byteLength, "bytes");
+          console.log("Audio URL created:", audioUrl.slice(0, 50) + "...");
         } catch (voiceError) {
           console.error("Voice generation failed:", voiceError);
         }

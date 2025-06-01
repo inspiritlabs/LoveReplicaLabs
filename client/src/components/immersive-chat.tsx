@@ -117,10 +117,10 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
     },
     onError: (error) => {
       console.error("Send message error:", error);
-      // Add error message to chat
+      // Show the real error string instead of fake apology
       const errorMessage: Message = {
         role: "assistant",
-        content: "Sorry, I'm having trouble responding right now. Please try again.",
+        content: `Error: ${error.message}`,
         id: (Date.now() + 1).toString(),
       };
       setMessages(prev => [...prev, errorMessage]);
