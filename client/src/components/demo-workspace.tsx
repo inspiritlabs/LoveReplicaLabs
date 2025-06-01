@@ -124,9 +124,19 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     }
   }, [chatMessages])
 
-  // Auto-launch immersive chat when generation is complete
+  // Initialize chat with system message when generation is complete and auto-launch immersive chat
   useEffect(() => {
-    if (generationComplete && isMounted.current && !showImmersiveChat) {
+    if (generationComplete && chatMessages.length === 0 && isMounted.current) {
+      setChatMessages([
+        {
+          id: "system-1",
+          role: "assistant",
+          content: `Hi ${name || "there"}! I'm here to chat whenever you need me. How are you feeling today?`,
+          feedback: null,
+        },
+      ])
+      
+      // Auto-launch immersive chat
       const replica = {
         id: Date.now(),
         name: name || "AI Companion",
@@ -141,7 +151,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
       setSelectedReplica(replica)
       setShowImmersiveChat(true)
     }
-  }, [generationComplete, name, photos, audioUrl, voiceId, personalityDescription, personalityTraits, showImmersiveChat])
+  }, [generationComplete, chatMessages.length, name, photos, audioUrl, voiceId, personalityDescription, personalityTraits])
 
   // Simulate generation countdown
   useEffect(() => {
@@ -804,13 +814,14 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
               </div>
             )}
 
-            {/* Ready Message - Immersive Chat will auto-launch */}
-            {generationComplete && !showImmersiveChat && (
+            {/* Chat Interface */}
+            {generationComplete && (
               <div className="space-y-6">
                 <div className="text-center mb-8">
-                  <h3 className="text-3xl font-semibold cosmic-glow mb-4">Launching Your AI Companion...</h3>
+                  <h3 className="text-3xl font-semibold cosmic-glow mb-4">Your AI Companion is Ready!</h3>
                   <p className="text-gray-300">
-                    Opening immersive chat experience...
+                    Start chatting below. You have{" "}
+                    <span className="text-purple-400 font-medium">{messagesRemaining}</span> messages remaining.
                   </p>
                 </div>
 
