@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Instant Voice Clone – spoken replies with tone sliders</title>
+<style>
+ body{font-family:sans-serif;background:#111;color:#eee;margin:0;padding:20px}
+ input[type=file],input[type=text],textarea{width:100%;padding:6px;border:1px solid #444;background:#222;color:#eee}
+ input[type=range]{width:100%}
+ button{padding:6px 12px;margin-top:10px;border:0;background:#3c6ef4;color:#fff;cursor:pointer}
+ button:disabled{opacity:.4;cursor:not-allowed}
+ pre{background:#1b1b1b;border:1px solid #333;padding:10px;white-space:pre-wrap;margin-top:12px}
+ .trait{margin-top:12px}
+ .trait label{display:flex;justify-content:space-between;font-size:.9rem}
+ h2{margin-top:26px;margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<h1>Instant Voice Cloning</h1>
+
+<!-- 1. upload + clone -->
+<input id="file" type="file" accept="audio/*">
+<button id="clone" disabled>Clone voice</button>
+
+<!-- 2. tone sliders -->
+<div id="sliderBlock" style="display:none">
+  <h2>Tone sliders (0–10)</h2>
+  <div id="traits"></div>
+</div>
+
+<!-- 3. custom system prompt -->
+<div id="promptBlock" style="display:none">
+  <h2>System prompt (optional)</h2>
+  <textarea id="system-prompt" rows="4" placeholder="Add any extra instructions for the AI…"></textarea>
+</div>
+
+<pre id="log">No voice cloned yet.</pre>
+
+<!-- 4. chat -->
+<input id="prompt" type="text" placeholder="Ask something…" disabled>
+<button id="send" disabled>Send</button>
+
+<!-- hidden audio (autoplays) -->
+<audio id="player" style="display:none"></audio>
+
+<script>
+/* KEYS – LOCAL TESTING ONLY */
+const OPENAI_API_KEY = "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";
+const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
+
+/* tone traits */
+const NAMES = ["warmth","humor","empathy","assertiveness","energy"];
+const traits = {}; NAMES.forEach(t=>traits[t]=5);
+
+/* helpers */
+const $ = id=>document.getElementById(id);
+let voiceId="";
+
+/* build sliders */
+const wrap=$("traits");
+NAMES.forEach(t=>{
+  const div=document.createElement("div");div.className="trait";
+  div.innerHTML=`<label>${t}<span id="${t}-val">5</span></label>
+  <input type="range" id="${t}-rng" min="0" max="10" value="5">`;
+  wrap.appendChild(div);
+  $(t+"-rng").oninput=e=>{
+    traits[t]=+e.target.value;
+    $(t+"-val").textContent=traits[t];
+  };
+});
+
+/* upload + clone */
+$("file").onchange=()=>$("clone").disabled=!$("file").files.length;
+$("clone").onclick=async()=>{
+  const f=$("file").files[0]; if(!f) return;
+  $("clone").disabled=true; $("log").textContent="Uploading to ElevenLabs…";
+  const data=new FormData(); data.append("files",f,f.name); data.append("name","Instant Clone");
+  const r=await fetch("https://api.elevenlabs.io/v1/voices/add",{method:"POST",headers:{"xi-api-key":ELEVEN_API_KEY},body:data});
+  if(!r.ok){$("log").textContent="Error cloning voice";$("clone").disabled=false;return;}
+  voiceId=(await r.json()).voice_id;
+  $("log").textContent="voice_id="+voiceId+"\nSliders & chat unlocked.";
+  ["sliderBlock","promptBlock"].forEach(id=>$(id).style.display="block");
+  $("prompt").disabled=$("send").disabled=false;
+};
+
+/* build final system prompt */
+function buildSystemPrompt(){
+  const tone = NAMES.map(t=>`${t}:${traits[t]}/10`).join(", ");
+  const extra = $("system-prompt").value.trim();
+  return `You are an AI speaking with ElevenLabs voice ID ${voiceId}.\n\n${extra ? extra+"\n\n" : ""}Tone scores → ${tone}.`;
+}
+
+/* chat */
+$("send").onclick=chat; $("prompt").onkeydown=e=>{if(e.key==="Enter")chat();};
+
+async function chat(){
+  const text=$("prompt").value.trim();
+  if(!text) return;
+  $("prompt").value=""; $("send").disabled=true;
+  $("log").textContent+=`\n\nYou: ${text}\nAI: …`;
+
+  try{
+    /* ChatGPT */
+    const res=await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+OPENAI_API_KEY},
+      body:JSON.stringify({model:"gpt-4o-mini",messages:[
+        {role:"system",content:buildSystemPrompt()},
+        {role:"user",content:text}
+      ],max_tokens:180})
+    });
+    if(!res.ok) throw new Error("OpenAI error "+res.status);
+    const reply=(await res.json()).choices[0].message.content.trim();
+    $("log").textContent+=reply;
+
+    /* ElevenLabs TTS */
+    const tts=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,{
+      method:"POST",
+      headers:{"xi-api-key":ELEVEN_API_KEY,"Content-Type":"application/json",accept:"audio/mpeg"},
+      body:JSON.stringify({text:reply,model_id:"eleven_multilingual_v2"})
+    });
+    if(!tts.ok) throw new Error("TTS error "+tts.status);
+    $("player").src=URL.createObjectURL(await tts.blob());
+    $("player").play();                       // auto play; element is hidden
+
+  }catch(err){$("log").textContent+="\n"+err.message;}
+  finally{$("send").disabled=false;}
+}
+</script>
+</body>
+</html>
