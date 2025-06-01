@@ -48,23 +48,53 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
+      console.log("Sending message to API:", content);
       const response = await fetch(`/api/replicas/${replica.id}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to send message");
+        const errorText = await response.text();
+        console.error("API Error:", response.status, errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
-      return response.json();
+      
+      const data = await response.json();
+      console.log("API Response:", data);
+      return data;
     },
     onSuccess: (data) => {
-      setMessages(prev => [...prev, data.userMessage, data.aiMessage]);
-      if (data.aiMessage.audioUrl) {
-        playAudio(data.aiMessage.audioUrl);
+      console.log("Processing successful response:", data);
+      
+      // Create assistant message from API response
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: data.message || data.content || "I received your message.",
+        id: (Date.now() + 1).toString(),
+        audioUrl: data.audioUrl || null,
+      };
+      
+      // Add assistant message to chat
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // Play audio if available
+      if (assistantMessage.audioUrl) {
+        playAudio(assistantMessage.audioUrl);
       }
+      
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+    onError: (error) => {
+      console.error("Send message error:", error);
+      // Add error message to chat
+      const errorMessage: Message = {
+        role: "assistant",
+        content: "Sorry, I'm having trouble responding right now. Please try again.",
+        id: (Date.now() + 1).toString(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
     },
   });
 
@@ -89,7 +119,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
   };
 
   const handleSendMessage = () => {
-    if (!inputValue.trim() || hasReachedLimit) return;
+    if (!inputValue.trim() || hasReachedLimit || sendMessageMutation.isPending) return;
     
     // Count user messages only
     const userMessageCount = messages.filter(msg => msg.role === "user").length;
@@ -106,24 +136,30 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const messageContent = inputValue.trim();
     setInputValue("");
     
-    // Check if this is the 5th message
+    // Check if this will be the 5th user message
     if (userMessageCount + 1 >= MAX_MESSAGES) {
       setHasReachedLimit(true);
-      // Add payment invitation message after a short delay
-      setTimeout(() => {
-        const paymentMessage: Message = {
-          role: "assistant",
-          content: "I've truly enjoyed our conversation together. There's so much more I'd love to share with you - deeper memories, more stories, and continued connection. To keep talking and exploring all the moments we could create together, would you like to explore our plans? I'm here whenever you're ready to continue our journey.",
-          id: (Date.now() + 1).toString(),
-        };
-        setMessages(prev => [...prev, paymentMessage]);
-      }, 1000);
+      // Send the API request first, then show payment message after response
+      sendMessageMutation.mutate(messageContent, {
+        onSettled: () => {
+          // Add payment invitation message after API response (success or failure)
+          setTimeout(() => {
+            const paymentMessage: Message = {
+              role: "assistant",
+              content: "I've truly enjoyed our conversation together. There's so much more I'd love to share with you - deeper memories, more stories, and continued connection. To keep talking and exploring all the moments we could create together, would you like to explore our plans? I'm here whenever you're ready to continue our journey.",
+              id: (Date.now() + 2).toString(),
+            };
+            setMessages(prev => [...prev, paymentMessage]);
+          }, 1000);
+        }
+      });
       return;
     }
     
-    sendMessageMutation.mutate(userMessage.content);
+    sendMessageMutation.mutate(messageContent);
   };
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -311,17 +347,22 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
                         handleSendMessage();
                       }
                     }}
-                    placeholder="Type your message..."
-                    className="w-full bg-transparent text-white placeholder-white/50 border-none outline-none resize-none min-h-[24px] max-h-32"
+                    placeholder={hasReachedLimit ? "Message limit reached" : "Type your message..."}
+                    disabled={hasReachedLimit || sendMessageMutation.isPending}
+                    className="w-full bg-transparent text-white placeholder-white/50 border-none outline-none resize-none min-h-[24px] max-h-32 disabled:opacity-50"
                     rows={1}
                   />
                 </div>
                 <button
                   onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || sendMessageMutation.isPending}
+                  disabled={!inputValue.trim() || sendMessageMutation.isPending || hasReachedLimit}
                   className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full text-white hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-5 h-5" />
+                  {sendMessageMutation.isPending ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
                 </button>
               </div>
               {/* Message counter */}
