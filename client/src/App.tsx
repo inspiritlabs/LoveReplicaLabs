@@ -8,7 +8,7 @@ import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import Admin from "@/pages/admin";
 import Plans from "@/pages/plans";
-import SimpleChat from "@/pages/simple-chat";
+
 
 function Router() {
   return (
@@ -17,7 +17,6 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin" component={Admin} />
       <Route path="/plans" component={Plans} />
-      <Route path="/chat" component={SimpleChat} />
       <Route component={NotFound} />
     </Switch>
   );
