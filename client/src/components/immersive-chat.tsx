@@ -49,11 +49,18 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      const response = await apiRequest(`/api/replicas/${replica.id}/chat`, {
+      const response = await fetch(`/api/replicas/${replica.id}/chat`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
-      return response;
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to send message");
+      }
+      
+      return await response.json();
     },
     onSuccess: (data) => {
       // Add both user and AI messages
