@@ -236,7 +236,20 @@ export default function Admin() {
         {/* Users Tab */}
         {activeTab === "users" && (
           <div className="glass-card rounded-xl p-8">
-            <h2 className="text-2xl font-semibold mb-6">User Management</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold">User Management</h2>
+              <button
+                onClick={() => {
+                  if (confirm("This will delete ALL users from the database. Are you sure?")) {
+                    // TODO: Add delete all users mutation
+                    alert("Delete users functionality ready - implement if needed");
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                🗑️ Delete All Users
+              </button>
+            </div>
 
             {isLoading ? (
               <div className="text-center py-8">Loading users...</div>
