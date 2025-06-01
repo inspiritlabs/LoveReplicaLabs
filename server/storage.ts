@@ -1,4 +1,4 @@
-import { users, replicas, chatMessages, type User, type InsertUser, type Replica, type InsertReplica, type ChatMessage, type InsertChatMessage } from "@shared/schema";
+import { users, replicas, chatMessages, usedAccessCodes, type User, type InsertUser, type Replica, type InsertReplica, type ChatMessage, type InsertChatMessage } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 
@@ -56,12 +56,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isAccessCodeUsed(accessCode: string): Promise<boolean> {
-    return this.usedAccessCodes.has(accessCode);
+    try {
+      const [existingCode] = await db
+        .select()
+        .from(usedAccessCodes) 
+        .where(eq(usedAccessCodes.accessCode, accessCode));
+      return !!existingCode;
+    } catch (error) {
+      // Fallback to memory check if table doesn't exist yet
+      return this.usedAccessCodes.has(accessCode);
+    }
   }
 
   async markAccessCodeAsUsed(accessCode: string, userId: number): Promise<void> {
-    this.usedAccessCodes.add(accessCode);
-    this.accessCodeUsers.set(accessCode, userId);
+    try {
+      await db.insert(usedAccessCodes).values({
+        accessCode,
+        userId
+      });
+    } catch (error) {
+      // Fallback to memory storage if table doesn't exist yet
+      this.usedAccessCodes.add(accessCode);
+      this.accessCodeUsers.set(accessCode, userId);
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {

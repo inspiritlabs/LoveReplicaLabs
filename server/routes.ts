@@ -130,7 +130,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: { 
           id: user.id, 
           email: user.email, 
-          credits: user.credits, 
+          credits: user.credits,
+          hasCreatedReplica: user.hasCreatedReplica,
           isAdmin: user.isAdmin 
         } 
       });
@@ -586,9 +587,12 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
         return res.status(404).json({ error: "Replica not found" });
       }
 
-      // Check user credits
+      // CRITICAL: Check user credits BEFORE any processing
       if ((replicaUser.credits || 0) <= 0) {
-        return res.status(402).json({ error: "Insufficient credits" });
+        return res.status(402).json({ 
+          error: "You have used all 5 messages. Upgrade or wait for next period.",
+          creditsRemaining: 0
+        });
       }
 
       // Voice ID is optional - chat can work without voice synthesis
