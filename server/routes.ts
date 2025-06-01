@@ -195,7 +195,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/replicas", async (req, res) => {
     try {
       const replicaData = insertReplicaSchema.parse(req.body);
+      
+      // CRITICAL: Check if user already has a replica
+      const user = await storage.getUser(replicaData.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (user.hasCreatedReplica) {
+        return res.status(403).json({ 
+          error: "You can only create one replica per account. This restriction cannot be bypassed." 
+        });
+      }
+      
+      // Create replica
       const replica = await storage.createReplica(replicaData);
+      
+      // Mark user as having created replica
+      await storage.updateUserReplicaStatus(user.id, true);
+      
       res.json(replica);
     } catch (error) {
       res.status(400).json({ error: "Invalid request" });

@@ -9,6 +9,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserCredits(userId: number, credits: number): Promise<User | undefined>;
+  updateUserReplicaStatus(userId: number, hasCreatedReplica: boolean): Promise<User | undefined>;
   
   // Access code tracking
   isAccessCodeUsed(accessCode: string): Promise<boolean>;
@@ -215,6 +216,15 @@ export class DatabaseStorage implements IStorage {
       avgMessagesPerUser,
       recentActivity: recentActivity.reverse(), // Most recent first
     };
+  }
+
+  async updateUserReplicaStatus(userId: number, hasCreatedReplica: boolean): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ hasCreatedReplica })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
   }
 }
 
