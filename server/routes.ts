@@ -649,52 +649,58 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       const aiMessage = openaiData.choices[0].message.content.trim();
       console.log("AI Message:", aiMessage);
 
-      // ElevenLabs TTS - exact same as HTML reference
-      console.log("=== ELEVENLABS TTS ===");
-      console.log("Voice ID:", currentReplica.voiceId);
-      console.log("Text:", aiMessage);
+      let audioUrl = null;
 
-      const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
-        method: "POST",
-        headers: {
-          "xi-api-key": ELEVEN_API_KEY,
-          "Content-Type": "application/json",
-          "accept": "audio/mpeg"
-        },
-        body: JSON.stringify({
-          text: aiMessage,
-          model_id: "eleven_multilingual_v2"
-        })
-      });
+      // Generate audio with ElevenLabs if voice ID exists
+      if (currentReplica.voiceId && currentReplica.voiceId.trim() !== '') {
+        try {
+          console.log("=== ELEVENLABS TTS ===");
+          console.log("Voice ID:", currentReplica.voiceId);
+          console.log("Text:", aiMessage);
 
-      console.log("TTS Status:", ttsResponse.status);
-      console.log("TTS Content-Type:", ttsResponse.headers.get('content-type'));
+          const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
+            method: "POST",
+            headers: {
+              "xi-api-key": ELEVEN_API_KEY,
+              "Content-Type": "application/json",
+              "accept": "audio/mpeg"
+            },
+            body: JSON.stringify({
+              text: aiMessage,
+              model_id: "eleven_multilingual_v2"
+            })
+          });
 
-      // Validate exactly like HTML: 200 + audio/mpeg
-      if (ttsResponse.status !== 200) {
-        const errorText = await ttsResponse.text();
-        console.error("TTS error:", ttsResponse.status, errorText);
-        return res.status(500).json({ error: `TTS error ${ttsResponse.status}: ${errorText}` });
+          console.log("TTS Status:", ttsResponse.status);
+          console.log("TTS Content-Type:", ttsResponse.headers.get('content-type'));
+
+          // Validate exactly like HTML: 200 + audio/mpeg
+          if (ttsResponse.status === 200) {
+            const contentType = ttsResponse.headers.get('content-type') || '';
+            if (contentType.includes('audio/mpeg')) {
+              const audioBuffer = await ttsResponse.arrayBuffer();
+              
+              // Validate audio size > 1KB
+              if (audioBuffer.byteLength > 1024) {
+                const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+                audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
+                console.log("TTS Success - Audio size:", audioBuffer.byteLength, "bytes");
+              } else {
+                console.error("Audio too small:", audioBuffer.byteLength, "bytes");
+              }
+            } else {
+              console.error("Invalid TTS content type:", contentType);
+            }
+          } else {
+            const errorText = await ttsResponse.text();
+            console.error("TTS error:", ttsResponse.status, errorText);
+          }
+        } catch (voiceError) {
+          console.error("Voice generation failed:", voiceError);
+        }
+      } else {
+        console.log("No voice ID available for replica, skipping voice generation");
       }
-
-      const contentType = ttsResponse.headers.get('content-type') || '';
-      if (!contentType.includes('audio/mpeg')) {
-        console.error("Invalid TTS content type:", contentType);
-        return res.status(500).json({ error: "Invalid TTS response type" });
-      }
-
-      const audioBuffer = await ttsResponse.arrayBuffer();
-      
-      // Validate audio size > 1KB
-      if (audioBuffer.byteLength <= 1024) {
-        console.error("Audio too small:", audioBuffer.byteLength, "bytes");
-        return res.status(500).json({ error: "Invalid audio response size" });
-      }
-
-      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-      const audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
-
-      console.log("TTS Success - Audio size:", audioBuffer.byteLength, "bytes");
 
       // Save messages to database
       const userMessage = await storage.createChatMessage({
