@@ -50,12 +50,23 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      console.log("Sending message to API:", content);
+      console.log("=== FRONTEND CHAT REQUEST ===");
+      console.log("Message content:", content);
+      console.log("Replica ID:", replica.id);
+      console.log("Request URL:", `/api/replicas/${replica.id}/chat`);
+      
+      const requestBody = { content };
+      console.log("Request body:", JSON.stringify(requestBody));
+      
       const response = await fetch(`/api/replicas/${replica.id}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log("=== FRONTEND CHAT RESPONSE ===");
+      console.log("Status:", response.status);
+      console.log("Headers:", Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -64,7 +75,10 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       }
       
       const data = await response.json();
-      console.log("API Response:", data);
+      console.log("Full API Response:", data);
+      console.log("AI Message content:", data.aiMessage?.content);
+      console.log("Audio URL present:", !!data.aiMessage?.audioUrl);
+      console.log("Credits remaining:", data.creditsRemaining);
       return data;
     },
     onSuccess: (data) => {
@@ -126,10 +140,35 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
   });
 
   const playAudio = (audioUrl: string) => {
-    if (audioRef.current) {
+    console.log("=== AUDIO PLAYBACK DEBUG ===");
+    console.log("Audio URL:", audioUrl?.slice(0, 50) + "...");
+    console.log("Audio element present:", !!audioRef.current);
+    
+    if (audioRef.current && audioUrl) {
       audioRef.current.src = audioUrl;
-      audioRef.current.play();
-      setIsAudioPlaying(true);
+      console.log("Audio src set, attempting to play...");
+      
+      audioRef.current.onerror = (e) => {
+        console.error("Audio playback error:", e);
+        setIsAudioPlaying(false);
+      };
+      
+      audioRef.current.onended = () => {
+        console.log("Audio playback ended");
+        setIsAudioPlaying(false);
+      };
+      
+      audioRef.current.play()
+        .then(() => {
+          console.log("Audio playback started successfully");
+          setIsAudioPlaying(true);
+        })
+        .catch((error) => {
+          console.error("Audio play() failed:", error);
+          setIsAudioPlaying(false);
+        });
+    } else {
+      console.warn("Cannot play audio - missing element or URL");
     }
   };
 
