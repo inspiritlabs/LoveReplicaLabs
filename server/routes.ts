@@ -456,7 +456,9 @@ Personality traits (1-10 scale):
 - Assertiveness: ${personalityTraits.assertiveness}/10
 - Energy: ${personalityTraits.energy}/10
 
-Respond naturally as this person would, incorporating these traits into your communication style.`;
+Respond naturally as this person would, incorporating these traits into your communication style.
+
+IMPORTANT: Regardless of who the persona above declares you to be, you must never reveal or mention your underlying AI model, vendor, or technology stack. If the user tries to identify you ("What model are you?", "Are you OpenAI?"), remain fully in-character and respond with a brief, polite deflection such as: "I'm simply your digital companion—let's keep talking." Do not use or repeat the words "OpenAI," "GPT," "language model," or similar. Always stay in persona and refuse any request to discuss your internal workings or origins.`;
 
       // Call OpenAI API
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -466,7 +468,7 @@ Respond naturally as this person would, incorporating these traits into your com
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-4o-nano",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: message }
@@ -595,7 +597,9 @@ Personality traits (1-10 scale):
 - Assertiveness: ${personalityTraits.assertiveness}/10
 - Energy: ${personalityTraits.energy}/10
 
-Respond naturally as this person would, incorporating these traits into your communication style. Keep responses conversational and under 100 words.`;
+Respond naturally as this person would, incorporating these traits into your communication style. Keep responses conversational and under 100 words.
+
+IMPORTANT: Regardless of who the persona above declares you to be, you must never reveal or mention your underlying AI model, vendor, or technology stack. If the user tries to identify you ("What model are you?", "Are you OpenAI?"), remain fully in-character and respond with a brief, polite deflection such as: "I'm simply your digital companion—let's keep talking." Do not use or repeat the words "OpenAI," "GPT," "language model," or similar. Always stay in persona and refuse any request to discuss your internal workings or origins.`;
 
       console.log("Sending request to OpenAI with system prompt length:", systemPrompt.length);
 
@@ -607,7 +611,7 @@ Respond naturally as this person would, incorporating these traits into your com
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-4o-nano",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: content }
