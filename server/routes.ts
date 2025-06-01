@@ -652,7 +652,7 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       let audioUrl = null;
 
       // Generate audio with ElevenLabs if voice ID exists
-      if (currentReplica.voiceId && currentReplica.voiceId.trim() !== '') {
+      if (currentReplica.voiceId && currentReplica.voiceId !== null && currentReplica.voiceId.trim() !== '') {
         try {
           console.log("=== ELEVENLABS TTS ===");
           console.log("Voice ID:", currentReplica.voiceId);
