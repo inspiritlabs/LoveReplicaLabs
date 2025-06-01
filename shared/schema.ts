@@ -8,8 +8,17 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   credits: integer("credits").default(5),
+  accessCode: text("access_code").notNull(),
+  hasCreatedReplica: boolean("has_created_replica").default(false),
   isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const usedAccessCodes = pgTable("used_access_codes", {
+  id: serial("id").primaryKey(),
+  accessCode: text("access_code").notNull().unique(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  usedAt: timestamp("used_at").defaultNow(),
 });
 
 export const replicas = pgTable("replicas", {
@@ -62,6 +71,12 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
+  accessCode: true,
+});
+
+export const insertUsedAccessCodeSchema = createInsertSchema(usedAccessCodes).omit({
+  id: true,
+  usedAt: true,
 });
 
 export const insertReplicaSchema = createInsertSchema(replicas).omit({
