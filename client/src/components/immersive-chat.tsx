@@ -125,6 +125,10 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       };
       setMessages(prev => [...prev, errorMessage]);
     },
+    onSettled: () => {
+      // Always reset processing state in finally block
+      console.log("Chat request settled, resetting UI state");
+    },
   });
 
   const uploadPhotoMutation = useMutation({
