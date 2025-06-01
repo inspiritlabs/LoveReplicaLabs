@@ -552,7 +552,7 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
     }
   });
 
-  // Replica chat endpoint with real OpenAI and ElevenLabs integration
+  // Replica chat endpoint - fixed to match working HTML reference
   app.post("/api/replicas/:id/chat", async (req, res) => {
     try {
       const replicaId = parseInt(req.params.id);
@@ -562,9 +562,11 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
         return res.status(400).json({ error: "Message content required" });
       }
 
-      console.log("Processing chat request for replica:", replicaId, "Message:", content);
+      console.log("=== CHAT REQUEST START ===");
+      console.log("Replica ID:", replicaId);
+      console.log("Message:", content);
 
-      // Get replica data - simplified for now
+      // Get replica data
       const allUsers = await storage.getAllUsers();
       let currentReplica = null;
       let replicaUser = null;
@@ -588,45 +590,41 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
         return res.status(402).json({ error: "Insufficient credits" });
       }
 
-      // Build system prompt with personality traits
+      // Voice ID is optional - chat can work without voice synthesis
+
+      // Build system prompt exactly like HTML reference
       const personalityTraits = currentReplica.personalityTraits as any || {
         warmth: 5, humor: 5, thoughtfulness: 5, empathy: 5, assertiveness: 5, energy: 5
       };
 
+      const toneScores = Object.entries(personalityTraits)
+        .map(([key, value]) => `${key}:${value}/10`)
+        .join(", ");
+
       const systemPrompt = `You are a digital replica with the following personality:
-${currentReplica.personalityDescription || "You are a helpful and engaging AI assistant."}
+${currentReplica.personalityDescription || ""}
 
 Personality traits (1-10 scale):
-- Warmth: ${personalityTraits.warmth}/10
-- Humor: ${personalityTraits.humor}/10  
-- Thoughtfulness: ${personalityTraits.thoughtfulness}/10
-- Empathy: ${personalityTraits.empathy}/10
-- Assertiveness: ${personalityTraits.assertiveness}/10
-- Energy: ${personalityTraits.energy}/10
+${Object.entries(personalityTraits).map(([key, value]) => `- ${key}: ${value}/10`).join('\n')}
 
 Respond naturally as this person would, incorporating these traits into your communication style. Keep responses conversational and under 100 words.
 
 IMPORTANT: Regardless of who the persona above declares you to be, you must never reveal or mention your underlying AI model, vendor, or technology stack. If the user tries to identify you ("What model are you?", "Are you OpenAI?"), remain fully in-character and respond with a brief, polite deflection such as: "I'm simply your digital companion—let's keep talking." Do not use or repeat the words "OpenAI," "GPT," "language model," or similar. Always stay in persona and refuse any request to discuss your internal workings or origins.`;
 
-      console.log("=== OPENAI REQUEST DEBUG ===");
-      console.log("API Key present:", OPENAI_API_KEY ? `${OPENAI_API_KEY.slice(0,8)}...` : "MISSING");
-      console.log("Model:", "gpt-4o-mini");
-      console.log("System prompt length:", systemPrompt.length);
-      console.log("User message:", content);
-
+      // OpenAI request - use exact model from HTML
       const requestBody = {
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: content }
         ],
-        max_tokens: 150,
-        temperature: 0.8,
+        max_tokens: 180
       };
 
+      console.log("=== OPENAI REQUEST ===");
+      console.log("Model:", requestBody.model);
       console.log("Request JSON:", JSON.stringify(requestBody, null, 2));
 
-      // Call OpenAI API
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -636,80 +634,67 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
         body: JSON.stringify(requestBody),
       });
 
-      const openaiResponseText = await openaiResponse.text();
-      console.log("=== OPENAI RESPONSE DEBUG ===");
+      console.log("=== OPENAI RESPONSE ===");
       console.log("Status:", openaiResponse.status);
-      console.log("Headers:", Object.fromEntries(openaiResponse.headers.entries()));
-      console.log("Full response:", openaiResponseText);
 
       if (!openaiResponse.ok) {
-        console.error("OpenAI API error:", openaiResponse.status, openaiResponseText);
-        throw new Error(`OpenAI API error: ${openaiResponse.status}`);
+        const errorText = await openaiResponse.text();
+        console.error("OpenAI error:", openaiResponse.status, errorText);
+        return res.status(500).json({ error: `OpenAI error ${openaiResponse.status}: ${errorText}` });
       }
 
-      const openaiData = JSON.parse(openaiResponseText);
-      const aiMessage = openaiData.choices[0].message.content;
+      const openaiData = await openaiResponse.json();
+      console.log("OpenAI Response JSON:", JSON.stringify(openaiData, null, 2));
       
-      console.log("AI generated message:", aiMessage);
+      const aiMessage = openaiData.choices[0].message.content.trim();
+      console.log("AI Message:", aiMessage);
 
-      let audioUrl = null;
+      // ElevenLabs TTS - exact same as HTML reference
+      console.log("=== ELEVENLABS TTS ===");
+      console.log("Voice ID:", currentReplica.voiceId);
+      console.log("Text:", aiMessage);
 
-      // Generate audio with ElevenLabs if voice ID exists
-      if (currentReplica.voiceId) {
-        try {
-          console.log("=== ELEVENLABS REQUEST DEBUG ===");
-          console.log("API Key present:", ELEVEN_API_KEY ? `${ELEVEN_API_KEY.slice(0,8)}...` : "MISSING");
-          console.log("Voice ID:", currentReplica.voiceId);
-          console.log("Text to synthesize:", aiMessage);
-          
-          const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
-            method: "POST",
-            headers: {
-              "xi-api-key": ELEVEN_API_KEY,
-              "Content-Type": "application/json",
-              "accept": "audio/mpeg",
-            },
-            body: JSON.stringify({
-              text: aiMessage,
-              model_id: "eleven_multilingual_v2",
-            }),
-          });
+      const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVEN_API_KEY,
+          "Content-Type": "application/json",
+          "accept": "audio/mpeg"
+        },
+        body: JSON.stringify({
+          text: aiMessage,
+          model_id: "eleven_multilingual_v2"
+        })
+      });
 
-          console.log("=== ELEVENLABS RESPONSE DEBUG ===");
-          console.log("Status:", elevenResponse.status);
-          console.log("Headers:", Object.fromEntries(elevenResponse.headers.entries()));
-          
-          // Validate exactly like reference: status 200 + audio/mpeg
-          const contentType = elevenResponse.headers.get('content-type') || '';
-          if (elevenResponse.status !== 200) {
-            const errorText = await elevenResponse.text();
-            console.error("TTS error", elevenResponse.status, errorText.slice(0, 120));
-            throw new Error(`TTS error ${elevenResponse.status}`);
-          }
-          
-          if (!contentType.includes('audio/mpeg')) {
-            console.error("Invalid content type:", contentType, "expected audio/mpeg");
-            throw new Error("Invalid TTS response type");
-          }
+      console.log("TTS Status:", ttsResponse.status);
+      console.log("TTS Content-Type:", ttsResponse.headers.get('content-type'));
 
-          const audioBuffer = await elevenResponse.arrayBuffer();
-          
-          // Validate blob size > 1KB like reference
-          if (audioBuffer.byteLength <= 1024) {
-            console.error("Audio blob too small:", audioBuffer.byteLength, "bytes");
-            throw new Error("Invalid audio response size");
-          }
-          
-          const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-          audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
-          console.log("Voice generation successful, audio size:", audioBuffer.byteLength, "bytes");
-          console.log("Audio URL created:", audioUrl.slice(0, 50) + "...");
-        } catch (voiceError) {
-          console.error("Voice generation failed:", voiceError);
-        }
-      } else {
-        console.log("No voice ID available for replica, skipping voice generation");
+      // Validate exactly like HTML: 200 + audio/mpeg
+      if (ttsResponse.status !== 200) {
+        const errorText = await ttsResponse.text();
+        console.error("TTS error:", ttsResponse.status, errorText);
+        return res.status(500).json({ error: `TTS error ${ttsResponse.status}: ${errorText}` });
       }
+
+      const contentType = ttsResponse.headers.get('content-type') || '';
+      if (!contentType.includes('audio/mpeg')) {
+        console.error("Invalid TTS content type:", contentType);
+        return res.status(500).json({ error: "Invalid TTS response type" });
+      }
+
+      const audioBuffer = await ttsResponse.arrayBuffer();
+      
+      // Validate audio size > 1KB
+      if (audioBuffer.byteLength <= 1024) {
+        console.error("Audio too small:", audioBuffer.byteLength, "bytes");
+        return res.status(500).json({ error: "Invalid audio response size" });
+      }
+
+      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+      const audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
+
+      console.log("TTS Success - Audio size:", audioBuffer.byteLength, "bytes");
 
       // Save messages to database
       const userMessage = await storage.createChatMessage({
@@ -730,11 +715,12 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
         feedbackText: null,
       });
 
-      // Deduct 1 credit
+      // Deduct 1 credit after successful completion
       const newCredits = (replicaUser.credits || 0) - 1;
       await storage.updateUserCredits(replicaUser.id, newCredits);
 
-      console.log("Chat completed successfully, credits remaining:", newCredits);
+      console.log("=== CHAT COMPLETE ===");
+      console.log("Credits remaining:", newCredits);
 
       res.json({
         userMessage: {
@@ -753,8 +739,9 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       });
 
     } catch (error) {
-      console.error("Chat error:", error);
-      res.status(500).json({ error: "Failed to process chat message" });
+      console.error("=== CHAT ERROR ===", error);
+      // Show real error instead of fake apology
+      res.status(500).json({ error: error.message || "Chat processing failed" });
     }
   });
 
