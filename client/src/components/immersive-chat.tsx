@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Send, Upload, X } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface Message {
   role: "user" | "assistant";
@@ -27,6 +28,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
   const MAX_MESSAGES = 5;
   const audioRef = useRef<HTMLAudioElement>(null);
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -285,8 +287,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
                       <button 
                         className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
                         onClick={() => {
-                          // TODO: Navigate to plans page when implemented
-                          alert("Plans page coming soon!");
+                          setLocation("/plans");
                         }}
                       >
                         Explore Plans
