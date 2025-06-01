@@ -2,11 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
-// Log API keys at startup to verify they're present
-console.log("=== API KEY VERIFICATION ===");
-console.log("OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.slice(0,8)}...` : "MISSING");
-console.log("ELEVEN_API_KEY:", process.env.ELEVENLABS_API_KEY ? `${process.env.ELEVENLABS_API_KEY.slice(0,8)}...` : "MISSING");
-
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));

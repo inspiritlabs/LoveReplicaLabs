@@ -1,4 +1,4 @@
-import { users, replicas, chatMessages, usedAccessCodes, type User, type InsertUser, type Replica, type InsertReplica, type ChatMessage, type InsertChatMessage } from "@shared/schema";
+import { users, replicas, chatMessages, type User, type InsertUser, type Replica, type InsertReplica, type ChatMessage, type InsertChatMessage } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 
@@ -9,7 +9,6 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserCredits(userId: number, credits: number): Promise<User | undefined>;
-  updateUserReplicaStatus(userId: number, hasCreatedReplica: boolean): Promise<User | undefined>;
   
   // Access code tracking
   isAccessCodeUsed(accessCode: string): Promise<boolean>;
@@ -18,7 +17,6 @@ export interface IStorage {
   // Replica methods
   createReplica(replica: InsertReplica): Promise<Replica>;
   getUserReplicas(userId: number): Promise<Replica[]>;
-  getReplicaById(id: number): Promise<Replica | undefined>;
   updateReplica(id: number, updates: Partial<InsertReplica>): Promise<Replica | undefined>;
   
   // Chat methods
@@ -58,29 +56,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isAccessCodeUsed(accessCode: string): Promise<boolean> {
-    try {
-      const [existingCode] = await db
-        .select()
-        .from(usedAccessCodes) 
-        .where(eq(usedAccessCodes.accessCode, accessCode));
-      return !!existingCode;
-    } catch (error) {
-      // Fallback to memory check if table doesn't exist yet
-      return this.usedAccessCodes.has(accessCode);
-    }
+    return this.usedAccessCodes.has(accessCode);
   }
 
   async markAccessCodeAsUsed(accessCode: string, userId: number): Promise<void> {
-    try {
-      await db.insert(usedAccessCodes).values({
-        accessCode,
-        userId
-      });
-    } catch (error) {
-      // Fallback to memory storage if table doesn't exist yet
-      this.usedAccessCodes.add(accessCode);
-      this.accessCodeUsers.set(accessCode, userId);
-    }
+    this.usedAccessCodes.add(accessCode);
+    this.accessCodeUsers.set(accessCode, userId);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -101,11 +82,6 @@ export class DatabaseStorage implements IStorage {
 
   async getUserReplicas(userId: number): Promise<Replica[]> {
     return await db.select().from(replicas).where(eq(replicas.userId, userId));
-  }
-
-  async getReplicaById(id: number): Promise<Replica | undefined> {
-    const [replica] = await db.select().from(replicas).where(eq(replicas.id, id));
-    return replica || undefined;
   }
 
   async updateReplica(id: number, updates: Partial<InsertReplica>): Promise<Replica | undefined> {
@@ -222,15 +198,6 @@ export class DatabaseStorage implements IStorage {
       avgMessagesPerUser,
       recentActivity: recentActivity.reverse(), // Most recent first
     };
-  }
-
-  async updateUserReplicaStatus(userId: number, hasCreatedReplica: boolean): Promise<User | undefined> {
-    const [updatedUser] = await db
-      .update(users)
-      .set({ hasCreatedReplica })
-      .where(eq(users.id, userId))
-      .returning();
-    return updatedUser;
   }
 }
 

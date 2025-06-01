@@ -116,11 +116,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
       
-      // Create user with access code tied to account
+      // Create user
       const user = await storage.createUser({ 
         email, 
-        password: hashedPassword,
-        accessCode: accessCode
+        password: hashedPassword 
       });
       
       // Mark access code as used
@@ -130,8 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user: { 
           id: user.id, 
           email: user.email, 
-          credits: user.credits,
-          hasCreatedReplica: user.hasCreatedReplica,
+          credits: user.credits, 
           isAdmin: user.isAdmin 
         } 
       });
@@ -195,25 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/replicas", async (req, res) => {
     try {
       const replicaData = insertReplicaSchema.parse(req.body);
-      
-      // CRITICAL: Check if user already has a replica
-      const user = await storage.getUser(replicaData.userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      if (user.hasCreatedReplica) {
-        return res.status(403).json({ 
-          error: "You can only create one replica per account. This restriction cannot be bypassed." 
-        });
-      }
-      
-      // Create replica
       const replica = await storage.createReplica(replicaData);
-      
-      // Mark user as having created replica
-      await storage.updateUserReplicaStatus(user.id, true);
-      
       res.json(replica);
     } catch (error) {
       res.status(400).json({ error: "Invalid request" });
@@ -407,16 +387,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = JSON.parse(responseText);
       const voiceId = data.voice_id;
       
-      // ASSERT voice_id is non-empty - halt if not
-      if (!voiceId || voiceId.trim() === "") {
-        console.error("CRITICAL: ElevenLabs returned empty voice_id:", data);
-        return res.status(500).json({ error: "Voice creation failed - no voice_id returned" });
-      }
-      
       // Track voice creation time for auto-deletion
       voiceCreationTimes.set(voiceId, Date.now());
       
-      console.log(`voice_id=${voiceId}`);
       console.log(`Voice created successfully: ${voiceId} - will be auto-deleted in 5 minutes`);
       res.json({ 
         voiceId: voiceId,
@@ -483,9 +456,7 @@ Personality traits (1-10 scale):
 - Assertiveness: ${personalityTraits.assertiveness}/10
 - Energy: ${personalityTraits.energy}/10
 
-Respond naturally as this person would, incorporating these traits into your communication style.
-
-IMPORTANT: Regardless of who the persona above declares you to be, you must never reveal or mention your underlying AI model, vendor, or technology stack. If the user tries to identify you ("What model are you?", "Are you OpenAI?"), remain fully in-character and respond with a brief, polite deflection such as: "I'm simply your digital companion—let's keep talking." Do not use or repeat the words "OpenAI," "GPT," "language model," or similar. Always stay in persona and refuse any request to discuss your internal workings or origins.`;
+Respond naturally as this person would, incorporating these traits into your communication style.`;
 
       // Call OpenAI API
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -572,207 +543,127 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
     }
   });
 
-  // Replica chat endpoint - fixed to match working HTML reference
+  // Replica chat endpoint with real OpenAI and ElevenLabs integration
   app.post("/api/replicas/:id/chat", async (req, res) => {
     try {
-      const replicaIdParam = req.params.id;
-      console.log("Raw replica ID param:", replicaIdParam);
-      
-      // Handle both numeric and timestamp-based IDs
-      let replicaId;
-      if (replicaIdParam.length > 10) {
-        // Timestamp-based ID from demo workspace
-        replicaId = parseInt(replicaIdParam);
-      } else {
-        // Regular numeric ID
-        replicaId = parseInt(replicaIdParam);
-      }
-      
+      const replicaId = parseInt(req.params.id);
       const { content } = req.body;
       
-      if (isNaN(replicaId) || !content) {
-        console.log("Invalid replica ID or missing content:", replicaIdParam, content);
-        return res.status(400).json({ error: "Invalid replica ID or missing content" });
-      }
-      
-      if (!content || content.trim() === "") {
+      if (!content) {
         return res.status(400).json({ error: "Message content required" });
       }
 
-      console.log("=== CHAT REQUEST START ===");
-      console.log("Replica ID:", replicaId);
-      console.log("Message:", content);
+      console.log("Processing chat request for replica:", replicaId, "Message:", content);
 
-      // Get replica directly using the storage method or handle demo replica
-      let currentReplica = await storage.getReplicaById(replicaId);
-      
-      // If not found in database, create a temporary demo replica for timestamp IDs
-      if (!currentReplica && replicaIdParam.length > 10) {
-        console.log("Creating demo replica for timestamp ID:", replicaId);
-        currentReplica = {
-          id: replicaId,
-          userId: 1, // Demo user
-          name: "Demo AI Companion",
-          personalityDescription: "A friendly and helpful AI companion",
-          personalityTraits: {
-            warmth: 7,
-            humor: 6, 
-            thoughtfulness: 8,
-            empathy: 7,
-            assertiveness: 5,
-            energy: 6
-          },
-          voiceId: null,
-          audioUrl: null,
-          photos: [],
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+      // Get replica data - simplified for now
+      const allUsers = await storage.getAllUsers();
+      let currentReplica = null;
+      let replicaUser = null;
+
+      for (const user of allUsers) {
+        const userReplicas = await storage.getUserReplicas(user.id);
+        const found = userReplicas.find(r => r.id === replicaId);
+        if (found) {
+          currentReplica = found;
+          replicaUser = user;
+          break;
+        }
       }
       
-      if (!currentReplica) {
-        console.log("Replica not found for ID:", replicaId);
+      if (!currentReplica || !replicaUser) {
         return res.status(404).json({ error: "Replica not found" });
       }
 
-      console.log("Found replica:", currentReplica.name);
-
-      // Get the user who owns this replica or create demo user
-      let replicaUser = await storage.getUser(currentReplica.userId);
-      
-      // For demo replicas, create a demo user with credits
-      if (!replicaUser && replicaIdParam.length > 10) {
-        console.log("Using demo user for timestamp replica");
-        replicaUser = {
-          id: 1,
-          email: "demo@example.com",
-          password: "demo",
-          credits: 10,
-          hasCreatedReplica: true,
-          isAdmin: false,
-          accessCode: null,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-      }
-      
-      if (!replicaUser) {
-        console.log("User not found for replica:", currentReplica.userId);
-        return res.status(404).json({ error: "Replica owner not found" });
-      }
-
-      // CRITICAL: Check user credits BEFORE any processing
+      // Check user credits
       if ((replicaUser.credits || 0) <= 0) {
-        return res.status(402).json({ 
-          error: "You have used all 5 messages. Upgrade or wait for next period.",
-          creditsRemaining: 0
-        });
+        return res.status(402).json({ error: "Insufficient credits" });
       }
 
-      // Voice ID is optional - chat can work without voice synthesis
-
-      // Build system prompt exactly like HTML reference
+      // Build system prompt with personality traits
       const personalityTraits = currentReplica.personalityTraits as any || {
         warmth: 5, humor: 5, thoughtfulness: 5, empathy: 5, assertiveness: 5, energy: 5
       };
 
-      const toneScores = Object.entries(personalityTraits)
-        .map(([key, value]) => `${key}:${value}/10`)
-        .join(", ");
-
       const systemPrompt = `You are a digital replica with the following personality:
-${currentReplica.personalityDescription || ""}
+${currentReplica.personalityDescription || "You are a helpful and engaging AI assistant."}
 
 Personality traits (1-10 scale):
-${Object.entries(personalityTraits).map(([key, value]) => `- ${key}: ${value}/10`).join('\n')}
+- Warmth: ${personalityTraits.warmth}/10
+- Humor: ${personalityTraits.humor}/10  
+- Thoughtfulness: ${personalityTraits.thoughtfulness}/10
+- Empathy: ${personalityTraits.empathy}/10
+- Assertiveness: ${personalityTraits.assertiveness}/10
+- Energy: ${personalityTraits.energy}/10
 
-Respond naturally as this person would, incorporating these traits into your communication style. Keep responses conversational and under 100 words.
+Respond naturally as this person would, incorporating these traits into your communication style. Keep responses conversational and under 100 words.`;
 
-IMPORTANT: Regardless of who the persona above declares you to be, you must never reveal or mention your underlying AI model, vendor, or technology stack. If the user tries to identify you ("What model are you?", "Are you OpenAI?"), remain fully in-character and respond with a brief, polite deflection such as: "I'm simply your digital companion—let's keep talking." Do not use or repeat the words "OpenAI," "GPT," "language model," or similar. Always stay in persona and refuse any request to discuss your internal workings or origins.`;
+      console.log("Sending request to OpenAI with system prompt length:", systemPrompt.length);
 
-      // OpenAI request - use exact model from HTML
-      const requestBody = {
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: content }
-        ],
-        max_tokens: 180
-      };
-
-      console.log("=== OPENAI REQUEST ===");
-      console.log("Model:", requestBody.model);
-      console.log("Request JSON:", JSON.stringify(requestBody, null, 2));
-
+      // Call OpenAI API
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: content }
+          ],
+          max_tokens: 150,
+          temperature: 0.8,
+        }),
       });
 
-      console.log("=== OPENAI RESPONSE ===");
-      console.log("Status:", openaiResponse.status);
+      const openaiResponseText = await openaiResponse.text();
+      console.log("OpenAI response status:", openaiResponse.status);
+      console.log("OpenAI response:", openaiResponseText.substring(0, 200));
 
       if (!openaiResponse.ok) {
-        const errorText = await openaiResponse.text();
-        console.error("OpenAI error:", openaiResponse.status, errorText);
-        return res.status(500).json({ error: `OpenAI error ${openaiResponse.status}: ${errorText}` });
+        console.error("OpenAI API error:", openaiResponse.status, openaiResponseText);
+        throw new Error(`OpenAI API error: ${openaiResponse.status}`);
       }
 
-      const openaiData = await openaiResponse.json();
-      console.log("OpenAI Response JSON:", JSON.stringify(openaiData, null, 2));
+      const openaiData = JSON.parse(openaiResponseText);
+      const aiMessage = openaiData.choices[0].message.content;
       
-      const aiMessage = openaiData.choices[0].message.content.trim();
-      console.log("AI Message:", aiMessage);
+      console.log("AI generated message:", aiMessage);
 
       let audioUrl = null;
 
       // Generate audio with ElevenLabs if voice ID exists
-      if (currentReplica.voiceId && currentReplica.voiceId !== null && currentReplica.voiceId.trim() !== '') {
+      if (currentReplica.voiceId) {
         try {
-          console.log("=== ELEVENLABS TTS ===");
-          console.log("Voice ID:", currentReplica.voiceId);
-          console.log("Text:", aiMessage);
-
-          const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
+          console.log("Generating voice with ElevenLabs for voice ID:", currentReplica.voiceId);
+          
+          const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
             method: "POST",
             headers: {
               "xi-api-key": ELEVEN_API_KEY,
               "Content-Type": "application/json",
-              "accept": "audio/mpeg"
             },
             body: JSON.stringify({
               text: aiMessage,
-              model_id: "eleven_multilingual_v2"
-            })
+              model_id: "eleven_monolingual_v1",
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.5,
+              },
+            }),
           });
 
-          console.log("TTS Status:", ttsResponse.status);
-          console.log("TTS Content-Type:", ttsResponse.headers.get('content-type'));
+          console.log("ElevenLabs TTS response status:", elevenResponse.status);
 
-          // Validate exactly like HTML: 200 + audio/mpeg
-          if (ttsResponse.status === 200) {
-            const contentType = ttsResponse.headers.get('content-type') || '';
-            if (contentType.includes('audio/mpeg')) {
-              const audioBuffer = await ttsResponse.arrayBuffer();
-              
-              // Validate audio size > 1KB
-              if (audioBuffer.byteLength > 1024) {
-                const audioBase64 = Buffer.from(audioBuffer).toString('base64');
-                audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
-                console.log("TTS Success - Audio size:", audioBuffer.byteLength, "bytes");
-              } else {
-                console.error("Audio too small:", audioBuffer.byteLength, "bytes");
-              }
-            } else {
-              console.error("Invalid TTS content type:", contentType);
-            }
+          if (elevenResponse.ok) {
+            const audioBuffer = await elevenResponse.arrayBuffer();
+            const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+            audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
+            console.log("Voice generation successful, audio size:", audioBuffer.byteLength, "bytes");
           } else {
-            const errorText = await ttsResponse.text();
-            console.error("TTS error:", ttsResponse.status, errorText);
+            const errorText = await elevenResponse.text();
+            console.error("ElevenLabs TTS error:", elevenResponse.status, errorText);
           }
         } catch (voiceError) {
           console.error("Voice generation failed:", voiceError);
@@ -800,12 +691,11 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
         feedbackText: null,
       });
 
-      // Deduct 1 credit after successful completion
+      // Deduct 1 credit
       const newCredits = (replicaUser.credits || 0) - 1;
       await storage.updateUserCredits(replicaUser.id, newCredits);
 
-      console.log("=== CHAT COMPLETE ===");
-      console.log("Credits remaining:", newCredits);
+      console.log("Chat completed successfully, credits remaining:", newCredits);
 
       res.json({
         userMessage: {
@@ -824,9 +714,8 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       });
 
     } catch (error) {
-      console.error("=== CHAT ERROR ===", error);
-      // Show real error instead of fake apology
-      res.status(500).json({ error: error.message || "Chat processing failed" });
+      console.error("Chat error:", error);
+      res.status(500).json({ error: "Failed to process chat message" });
     }
   });
 
@@ -924,82 +813,6 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch statistics" });
-    }
-  });
-
-  // Admin voice cleanup endpoint
-  app.post("/api/admin/cleanup-voices", async (req, res) => {
-    try {
-      const adminPassword = req.headers.authorization;
-      if (adminPassword !== "Bearer admin123") {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      if (!ELEVEN_API_KEY) {
-        return res.status(500).json({ error: "ElevenLabs API key not configured" });
-      }
-
-      console.log("=== ADMIN VOICE CLEANUP ===");
-      console.log("Fetching all voices from ElevenLabs...");
-
-      // Get all voices from ElevenLabs
-      const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
-        headers: { "xi-api-key": ELEVEN_API_KEY }
-      });
-
-      if (!voicesResponse.ok) {
-        throw new Error(`Failed to fetch voices: ${voicesResponse.status}`);
-      }
-
-      const voicesData = await voicesResponse.json();
-      const clonedVoices = voicesData.voices.filter(voice => voice.category === "cloned");
-      
-      console.log(`Found ${clonedVoices.length} cloned voices to delete`);
-
-      let deletedCount = 0;
-      const failures = [];
-
-      // Delete each cloned voice
-      for (const voice of clonedVoices) {
-        try {
-          console.log(`Deleting voice: ${voice.voice_id} (${voice.name})`);
-          
-          const deleteResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voice.voice_id}`, {
-            method: "DELETE",
-            headers: { "xi-api-key": ELEVEN_API_KEY }
-          });
-
-          if (deleteResponse.ok) {
-            deletedCount++;
-            console.log(`✓ Deleted voice: ${voice.voice_id}`);
-          } else {
-            const errorText = await deleteResponse.text();
-            console.error(`✗ Failed to delete voice ${voice.voice_id}:`, deleteResponse.status, errorText);
-            failures.push(`${voice.name} (${voice.voice_id}): ${deleteResponse.status}`);
-          }
-        } catch (error) {
-          console.error(`✗ Error deleting voice ${voice.voice_id}:`, error);
-          failures.push(`${voice.name} (${voice.voice_id}): ${error.message}`);
-        }
-      }
-
-      console.log(`=== CLEANUP COMPLETE ===`);
-      console.log(`Successfully deleted: ${deletedCount}/${clonedVoices.length} voices`);
-      
-      if (failures.length > 0) {
-        console.log(`Failures:`, failures);
-      }
-
-      res.json({
-        success: true,
-        deletedCount: deletedCount,
-        totalFound: clonedVoices.length,
-        failures: failures
-      });
-
-    } catch (error) {
-      console.error("Voice cleanup error:", error);
-      res.status(500).json({ error: `Failed to cleanup voices: ${error.message}` });
     }
   });
 
