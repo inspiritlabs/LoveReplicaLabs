@@ -578,7 +578,12 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       const replicaId = parseInt(req.params.id);
       const { content } = req.body;
       
-      if (!content) {
+      if (isNaN(replicaId)) {
+        console.log("Invalid replica ID:", req.params.id);
+        return res.status(400).json({ error: "Invalid replica ID" });
+      }
+      
+      if (!content || content.trim() === "") {
         return res.status(400).json({ error: "Message content required" });
       }
 
@@ -586,23 +591,22 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
       console.log("Replica ID:", replicaId);
       console.log("Message:", content);
 
-      // Get replica data
-      const allUsers = await storage.getAllUsers();
-      let currentReplica = null;
-      let replicaUser = null;
-
-      for (const user of allUsers) {
-        const userReplicas = await storage.getUserReplicas(user.id);
-        const found = userReplicas.find(r => r.id === replicaId);
-        if (found) {
-          currentReplica = found;
-          replicaUser = user;
-          break;
-        }
-      }
+      // Get replica directly using the storage method
+      const currentReplica = await storage.getReplicaById(replicaId);
       
-      if (!currentReplica || !replicaUser) {
+      if (!currentReplica) {
+        console.log("Replica not found for ID:", replicaId);
         return res.status(404).json({ error: "Replica not found" });
+      }
+
+      console.log("Found replica:", currentReplica.name);
+
+      // Get the user who owns this replica
+      const replicaUser = await storage.getUser(currentReplica.userId);
+      
+      if (!replicaUser) {
+        console.log("User not found for replica:", currentReplica.userId);
+        return res.status(404).json({ error: "Replica owner not found" });
       }
 
       // CRITICAL: Check user credits BEFORE any processing

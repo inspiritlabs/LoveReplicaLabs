@@ -18,6 +18,7 @@ export interface IStorage {
   // Replica methods
   createReplica(replica: InsertReplica): Promise<Replica>;
   getUserReplicas(userId: number): Promise<Replica[]>;
+  getReplicaById(id: number): Promise<Replica | undefined>;
   updateReplica(id: number, updates: Partial<InsertReplica>): Promise<Replica | undefined>;
   
   // Chat methods
@@ -100,6 +101,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUserReplicas(userId: number): Promise<Replica[]> {
     return await db.select().from(replicas).where(eq(replicas.userId, userId));
+  }
+
+  async getReplicaById(id: number): Promise<Replica | undefined> {
+    const [replica] = await db.select().from(replicas).where(eq(replicas.id, id));
+    return replica || undefined;
   }
 
   async updateReplica(id: number, updates: Partial<InsertReplica>): Promise<Replica | undefined> {
