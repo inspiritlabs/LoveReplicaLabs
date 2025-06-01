@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface User {
   id: number;
@@ -125,6 +126,27 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setEditingUser(null);
       setNewCredits("");
+    },
+  });
+
+  const cleanupVoicesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/cleanup-voices", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${password}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) throw new Error("Failed to cleanup voices");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      alert(`Successfully deleted ${data.deletedCount} voices from ElevenLabs`);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/replicas"] });
+    },
+    onError: (error) => {
+      alert(`Voice cleanup failed: ${error.message}`);
     },
   });
 
@@ -450,7 +472,20 @@ export default function Admin() {
         {/* Voices Tab */}
         {activeTab === "voices" && (
           <div className="glass-card rounded-xl p-8">
-            <h2 className="text-2xl font-semibold mb-6">Voice Uploads</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold">Voice Uploads</h2>
+              <button
+                onClick={() => {
+                  if (confirm("This will delete ALL cloned voices from ElevenLabs. Are you sure?")) {
+                    cleanupVoicesMutation.mutate();
+                  }
+                }}
+                disabled={cleanupVoicesMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                {cleanupVoicesMutation.isPending ? "Deleting..." : "🗑️ Cleanup All Voices"}
+              </button>
+            </div>
 
             {replicas && replicas.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

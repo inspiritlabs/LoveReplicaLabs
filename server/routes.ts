@@ -855,6 +855,82 @@ IMPORTANT: Regardless of who the persona above declares you to be, you must neve
     }
   });
 
+  // Admin voice cleanup endpoint
+  app.post("/api/admin/cleanup-voices", async (req, res) => {
+    try {
+      const adminPassword = req.headers.authorization;
+      if (adminPassword !== "Bearer admin123") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      if (!ELEVEN_API_KEY) {
+        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+      }
+
+      console.log("=== ADMIN VOICE CLEANUP ===");
+      console.log("Fetching all voices from ElevenLabs...");
+
+      // Get all voices from ElevenLabs
+      const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
+        headers: { "xi-api-key": ELEVEN_API_KEY }
+      });
+
+      if (!voicesResponse.ok) {
+        throw new Error(`Failed to fetch voices: ${voicesResponse.status}`);
+      }
+
+      const voicesData = await voicesResponse.json();
+      const clonedVoices = voicesData.voices.filter(voice => voice.category === "cloned");
+      
+      console.log(`Found ${clonedVoices.length} cloned voices to delete`);
+
+      let deletedCount = 0;
+      const failures = [];
+
+      // Delete each cloned voice
+      for (const voice of clonedVoices) {
+        try {
+          console.log(`Deleting voice: ${voice.voice_id} (${voice.name})`);
+          
+          const deleteResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voice.voice_id}`, {
+            method: "DELETE",
+            headers: { "xi-api-key": ELEVEN_API_KEY }
+          });
+
+          if (deleteResponse.ok) {
+            deletedCount++;
+            console.log(`✓ Deleted voice: ${voice.voice_id}`);
+          } else {
+            const errorText = await deleteResponse.text();
+            console.error(`✗ Failed to delete voice ${voice.voice_id}:`, deleteResponse.status, errorText);
+            failures.push(`${voice.name} (${voice.voice_id}): ${deleteResponse.status}`);
+          }
+        } catch (error) {
+          console.error(`✗ Error deleting voice ${voice.voice_id}:`, error);
+          failures.push(`${voice.name} (${voice.voice_id}): ${error.message}`);
+        }
+      }
+
+      console.log(`=== CLEANUP COMPLETE ===`);
+      console.log(`Successfully deleted: ${deletedCount}/${clonedVoices.length} voices`);
+      
+      if (failures.length > 0) {
+        console.log(`Failures:`, failures);
+      }
+
+      res.json({
+        success: true,
+        deletedCount: deletedCount,
+        totalFound: clonedVoices.length,
+        failures: failures
+      });
+
+    } catch (error) {
+      console.error("Voice cleanup error:", error);
+      res.status(500).json({ error: `Failed to cleanup voices: ${error.message}` });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
