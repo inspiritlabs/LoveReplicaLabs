@@ -11,19 +11,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { email, password } = insertUserSchema.parse(req.body);
+      const userData = insertUserSchema.parse(req.body);
+      
+      // Validate access code
+      const isValidCode = await storage.validateAccessCode(userData.accessCode);
+      if (!isValidCode) {
+        return res.status(400).json({ error: "Invalid or already used access code" });
+      }
       
       // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
+      const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
         return res.status(400).json({ error: "User already exists" });
       }
 
       // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
       
       // Create user
-      const user = await storage.createUser({ email, password: hashedPassword });
+      const user = await storage.createUser({
+        ...userData,
+        password: hashedPassword,
+      });
+
+      // Mark access code as used
+      await storage.markAccessCodeUsed(userData.accessCode, user.id);
       
       // Don't return password
       const { password: _, ...userWithoutPassword } = user;
