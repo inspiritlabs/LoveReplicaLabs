@@ -7,22 +7,31 @@ export default function Home() {
   const [isSignIn, setIsSignIn] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
+    if (!isSignIn && !accessCode.trim()) {
+      setError("Access code is required for registration");
+      return;
+    }
     
     setIsLoading(true);
     setError("");
     
     try {
       const endpoint = isSignIn ? "/api/auth/login" : "/api/auth/register";
+      const body = isSignIn 
+        ? { email, password }
+        : { email, password, accessCode };
+      
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
@@ -73,6 +82,20 @@ export default function Home() {
               required
             />
           </div>
+
+          {!isSignIn && (
+            <div>
+              <input
+                type="text"
+                placeholder="Access Code"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                className="w-full p-4 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-2">Enter your invitation access code</p>
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
