@@ -8,139 +8,7 @@ const OPENAI_API_KEY = "sk-proj-HVm-6p8B6Jn5SuAiEM3XZJjs2NEcgcv3zELqug7f-tf0cSe0
 const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Validate access code (step 1)
-  app.post("/api/auth/validate-code", async (req, res) => {
-    try {
-      const { accessCode } = req.body;
-      
-      console.log("Validating access code:", accessCode);
-      
-      if (!accessCode || typeof accessCode !== 'string') {
-        console.log("Missing or invalid access code");
-        return res.status(400).json({ error: "Access code required" });
-      }
-
-      // Validate access code pattern: INSP-XXXX-YYYY
-      const codePattern = /^INSP-\d{4}-[A-Z]{4}$/;
-      if (!codePattern.test(accessCode)) {
-        console.log("Pattern validation failed for:", accessCode);
-        return res.status(401).json({ error: "Invalid access code format" });
-      }
-
-      // Extract sequence number from code
-      const parts = accessCode.split('-');
-      const sequenceNum = parseInt(parts[1]);
-      
-      console.log("Sequence number:", sequenceNum);
-      
-      // Simple suffix list - exactly 26 NATO phonetic alphabet codes  
-      const suffixes = [
-        "ALFA", "BETA", "CHAR", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
-        "KILO", "LIMA", "MIKE", "NOVA", "OSCA", "PAPA", "QUBE", "ROME", "SIER", "TANG",
-        "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU"
-      ];
-      
-      const expectedSuffix = suffixes[(sequenceNum - 1) % suffixes.length];
-      const actualSuffix = parts[2];
-      
-      console.log("Expected suffix:", expectedSuffix, "Actual suffix:", actualSuffix);
-      
-      if (actualSuffix !== expectedSuffix) {
-        console.log("Suffix mismatch");
-        return res.status(401).json({ error: "Invalid access code" });
-      }
-
-      // Check if access code is already used
-      const isUsed = await storage.isAccessCodeUsed(accessCode);
-      if (isUsed) {
-        console.log("Access code already used, returning login option");
-        return res.json({ 
-          valid: true, 
-          alreadyUsed: true, 
-          message: "Access code already used. Please login with your email and password." 
-        });
-      }
-
-      console.log("Access code validated successfully for new registration");
-      res.json({ valid: true, alreadyUsed: false, message: "Access code verified" });
-
-    } catch (error) {
-      console.error("Access code validation error:", error);
-      res.status(500).json({ error: "Validation failed" });
-    }
-  });
-
-  // Register with access code (step 2)
-  app.post("/api/auth/register-with-code", async (req, res) => {
-    try {
-      const { accessCode, email, password } = req.body;
-      
-      if (!accessCode || !email || !password) {
-        return res.status(400).json({ error: "All fields required" });
-      }
-
-      // Re-validate access code
-      const codePattern = /^INSP-\d{4}-[A-Z]{4}$/;
-      if (!codePattern.test(accessCode)) {
-        return res.status(401).json({ error: "Invalid access code" });
-      }
-
-      // Extract sequence number and validate suffix
-      const parts = accessCode.split('-');
-      const sequenceNum = parseInt(parts[1]);
-      
-      const suffixes = [
-        "ALFA", "BETA", "CHAR", "DELT", "ECHO", "FXTX", "GOLF", "HOTL", "INDI", "JULI",
-        "KILO", "LIMA", "MIKE", "NOVA", "OSCA", "PAPA", "QUBE", "ROME", "SIER", "TANG",
-        "UNIC", "VICT", "WHIS", "XRAY", "YANK", "ZULU"
-      ];
-      
-      const expectedSuffix = suffixes[(sequenceNum - 1) % suffixes.length];
-      
-      if (parts[2] !== expectedSuffix) {
-        return res.status(401).json({ error: "Invalid access code" });
-      }
-
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ error: "Email already registered" });
-      }
-
-      // Double-check if access code was already used
-      const isUsed = await storage.isAccessCodeUsed(accessCode);
-      if (isUsed) {
-        return res.status(400).json({ error: "Access code already used" });
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-      
-      // Create user
-      const user = await storage.createUser({ 
-        email, 
-        password: hashedPassword 
-      });
-      
-      // Mark access code as used
-      await storage.markAccessCodeAsUsed(accessCode, user.id);
-      
-      res.json({ 
-        user: { 
-          id: user.id, 
-          email: user.email, 
-          credits: user.credits, 
-          isAdmin: user.isAdmin 
-        } 
-      });
-
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ error: "Registration failed" });
-    }
-  });
-
-  // Auth routes  
+  // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { email, password } = insertUserSchema.parse(req.body);
@@ -245,83 +113,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Check ElevenLabs voice slots
-  app.get("/api/voice/slots", async (req, res) => {
-    try {
-      if (!ELEVEN_API_KEY) {
-        return res.status(500).json({ error: "ElevenLabs API key not configured" });
-      }
-
-      // Get user info to check voice limits
-      const userResponse = await fetch("https://api.elevenlabs.io/v1/user", {
-        headers: { "xi-api-key": ELEVEN_API_KEY }
-      });
-
-      if (!userResponse.ok) {
-        throw new Error("Failed to fetch user info");
-      }
-
-      const userData = await userResponse.json();
-      
-      // Get all voices to count current usage
-      const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
-        headers: { "xi-api-key": ELEVEN_API_KEY }
-      });
-
-      if (!voicesResponse.ok) {
-        throw new Error("Failed to fetch voices");
-      }
-
-      const voicesData = await voicesResponse.json();
-      const customVoices = voicesData.voices.filter(voice => voice.category === "cloned");
-      
-      res.json({
-        used: customVoices.length,
-        limit: userData.subscription?.voice_limit || 10,
-        available: (userData.subscription?.voice_limit || 10) - customVoices.length,
-        voices: customVoices
-      });
-
-    } catch (error) {
-      console.error("Voice slots check error:", error);
-      res.status(500).json({ error: "Failed to check voice slots" });
-    }
-  });
-
-  // Voice tracking for auto-deletion
-  const voiceCreationTimes = new Map<string, number>();
-
-  // Cleanup function to delete old voices
-  const cleanupOldVoices = async () => {
-    const now = Date.now();
-    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-    for (const [voiceId, creationTime] of voiceCreationTimes.entries()) {
-      if (now - creationTime >= fiveMinutes) {
-        try {
-          console.log(`Auto-deleting voice ${voiceId} after 5 minutes`);
-          
-          const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
-            method: "DELETE",
-            headers: { "xi-api-key": ELEVEN_API_KEY }
-          });
-
-          if (response.ok) {
-            console.log(`Successfully auto-deleted voice ${voiceId}`);
-            voiceCreationTimes.delete(voiceId);
-          } else {
-            console.error(`Failed to auto-delete voice ${voiceId}:`, response.status);
-          }
-        } catch (error) {
-          console.error(`Error auto-deleting voice ${voiceId}:`, error);
-        }
-      }
-    }
-  };
-
-  // Run cleanup every minute
-  setInterval(cleanupOldVoices, 60 * 1000);
-
   // Voice upload and creation endpoint
   app.post("/api/voice/create", async (req, res) => {
     try {
@@ -333,18 +124,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!ELEVEN_API_KEY) {
         return res.status(500).json({ error: "ElevenLabs API key not configured" });
-      }
-
-      // Check voice slots before creating
-      const slotsResponse = await fetch(`${req.protocol}://${req.get('host')}/api/voice/slots`);
-      if (slotsResponse.ok) {
-        const slotsData = await slotsResponse.json();
-        if (slotsData.available <= 0) {
-          return res.status(429).json({ 
-            error: "Voice slots full. Please wait or delete unused voices.", 
-            slotsInfo: slotsData 
-          });
-        }
       }
 
       // Convert base64 to buffer
@@ -385,51 +164,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const data = JSON.parse(responseText);
-      const voiceId = data.voice_id;
-      
-      // Track voice creation time for auto-deletion
-      voiceCreationTimes.set(voiceId, Date.now());
-      
-      console.log(`Voice created successfully: ${voiceId} - will be auto-deleted in 5 minutes`);
-      res.json({ 
-        voiceId: voiceId,
-        autoDeleteIn: "5 minutes"
-      });
+      console.log("Voice created successfully:", data.voice_id);
+      res.json({ voiceId: data.voice_id });
 
     } catch (error) {
       console.error("Voice creation error:", error);
       res.status(500).json({ error: (error as Error).message || "Failed to create voice" });
-    }
-  });
-
-  // Delete voice endpoint
-  app.delete("/api/voice/:voiceId", async (req, res) => {
-    try {
-      const { voiceId } = req.params;
-      
-      if (!ELEVEN_API_KEY) {
-        return res.status(500).json({ error: "ElevenLabs API key not configured" });
-      }
-
-      const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, {
-        method: "DELETE",
-        headers: { "xi-api-key": ELEVEN_API_KEY }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Voice deletion error:", response.status, errorText);
-        return res.status(response.status).json({ error: "Failed to delete voice" });
-      }
-
-      // Remove from tracking when manually deleted
-      voiceCreationTimes.delete(voiceId);
-      
-      res.json({ success: true, message: "Voice deleted successfully" });
-
-    } catch (error) {
-      console.error("Voice deletion error:", error);
-      res.status(500).json({ error: "Failed to delete voice" });
     }
   });
 
