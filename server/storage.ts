@@ -1,4 +1,4 @@
-import { users, replicas, chatMessages, type User, type InsertUser, type Replica, type InsertReplica, type ChatMessage, type InsertChatMessage } from "@shared/schema";
+import { users, replicas, chatMessages, accessCodes, type User, type InsertUser, type Replica, type InsertReplica, type ChatMessage, type InsertChatMessage } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 
@@ -9,6 +9,11 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserCredits(userId: number, credits: number): Promise<User | undefined>;
+  
+  // Access code methods
+  validateAccessCode(code: string): Promise<boolean>;
+  markAccessCodeUsed(code: string, userId: number): Promise<void>;
+  createAccessCode(code: string): Promise<void>;
   
   // Replica methods
   createReplica(replica: InsertReplica): Promise<Replica>;
@@ -116,6 +121,30 @@ export class DatabaseStorage implements IStorage {
       .orderBy(chatMessages.createdAt);
     
     return result;
+  }
+
+  async validateAccessCode(code: string): Promise<boolean> {
+    const [accessCode] = await db
+      .select()
+      .from(accessCodes)
+      .where(eq(accessCodes.code, code));
+    
+    return accessCode && !accessCode.isUsed;
+  }
+
+  async markAccessCodeUsed(code: string, userId: number): Promise<void> {
+    await db
+      .update(accessCodes)
+      .set({ 
+        isUsed: true, 
+        usedBy: userId, 
+        usedAt: new Date() 
+      })
+      .where(eq(accessCodes.code, code));
+  }
+
+  async createAccessCode(code: string): Promise<void> {
+    await db.insert(accessCodes).values({ code });
   }
 
   async getAdminStats(): Promise<{
