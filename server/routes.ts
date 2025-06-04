@@ -14,6 +14,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userData = insertUserSchema.parse(req.body);
       
       // Validate access code
+      if (!userData.accessCode) {
+        return res.status(400).json({ error: "Access code is required" });
+      }
+      
       const isValidCode = await storage.validateAccessCode(userData.accessCode);
       if (!isValidCode) {
         return res.status(400).json({ error: "Invalid or already used access code" });
@@ -35,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Mark access code as used
-      await storage.markAccessCodeUsed(userData.accessCode, user.id);
+      await storage.markAccessCodeUsed(userData.accessCode!, user.id);
       
       // Don't return password
       const { password: _, ...userWithoutPassword } = user;
