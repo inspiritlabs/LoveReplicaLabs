@@ -7,8 +7,18 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
+  accessCode: text("access_code").notNull(),
   credits: integer("credits").default(10),
   isAdmin: boolean("is_admin").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const accessCodes = pgTable("access_codes", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  isUsed: boolean("is_used").default(false),
+  usedBy: integer("used_by").references(() => users.id),
+  usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -43,6 +53,13 @@ export const usersRelations = relations(users, ({ many }) => ({
   replicas: many(replicas),
 }));
 
+export const accessCodesRelations = relations(accessCodes, ({ one }) => ({
+  user: one(users, {
+    fields: [accessCodes.usedBy],
+    references: [users.id],
+  }),
+}));
+
 export const replicasRelations = relations(replicas, ({ one, many }) => ({
   user: one(users, {
     fields: [replicas.userId],
@@ -62,6 +79,11 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
+  accessCode: true,
+});
+
+export const insertAccessCodeSchema = createInsertSchema(accessCodes).pick({
+  code: true,
 });
 
 export const insertReplicaSchema = createInsertSchema(replicas).omit({
