@@ -169,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Voice upload and creation endpoint
-  app.post("/api/create-voice", upload.single('voice_file'), async (req, res) => {
+  app.post("/api/create-voice", upload.single('voice_file'), async (req: MulterRequest, res) => {
     try {
       const file = req.file;
       const name = req.body.name || "Voice Clone";
@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
         method: "POST",
         headers: { 
-          "xi-api-key": ELEVEN_API_KEY,
+          "xi-api-key": ELEVEN_API_KEY!,
         },
         body: formData
       });
@@ -282,7 +282,7 @@ Respond naturally as this person would, incorporating these traits into your com
       const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
         method: "POST",
         headers: {
-          "xi-api-key": ELEVEN_API_KEY,
+          "xi-api-key": ELEVEN_API_KEY!,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -435,7 +435,7 @@ Respond naturally as this person would, incorporating these traits into your com
           const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
             method: "POST",
             headers: {
-              "xi-api-key": ELEVEN_API_KEY,
+              "xi-api-key": ELEVEN_API_KEY!,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -622,7 +622,7 @@ Respond naturally as this person would, incorporating these traits into your com
 
       // Get all voices from ElevenLabs
       const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
-        headers: { "xi-api-key": ELEVEN_API_KEY }
+        headers: new Headers({ "xi-api-key": ELEVEN_API_KEY! })
       });
 
       if (!voicesResponse.ok) {
@@ -640,7 +640,7 @@ Respond naturally as this person would, incorporating these traits into your com
         try {
           const deleteResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voice.voice_id}`, {
             method: "DELETE",
-            headers: { "xi-api-key": ELEVEN_API_KEY }
+            headers: new Headers({ "xi-api-key": ELEVEN_API_KEY! })
           });
 
           if (deleteResponse.ok) {
