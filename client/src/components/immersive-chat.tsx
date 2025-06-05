@@ -154,7 +154,10 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
       <div className="absolute top-0 left-0 right-0 z-20 p-6">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => onBack(messages, messagesRemaining)}
+            onClick={(e) => {
+              e.preventDefault();
+              onBack(messages, messagesRemaining);
+            }}
             className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
