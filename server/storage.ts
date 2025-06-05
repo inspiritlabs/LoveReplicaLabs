@@ -112,6 +112,19 @@ export class DatabaseStorage implements IStorage {
     return updatedUser || undefined;
   }
 
+  async deleteUser(userId: number): Promise<void> {
+    // Delete user's chat messages first
+    await db.delete(chatMessages).where(
+      sql`replica_id IN (SELECT id FROM replicas WHERE user_id = ${userId})`
+    );
+    
+    // Delete user's replicas
+    await db.delete(replicas).where(eq(replicas.userId, userId));
+    
+    // Delete the user
+    await db.delete(users).where(eq(users.id, userId));
+  }
+
   async getAllChatMessages(): Promise<(ChatMessage & { replicaName: string; userEmail: string })[]> {
     const result = await db
       .select({

@@ -128,6 +128,38 @@ export default function Admin() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${password}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to delete user");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    },
+  });
+
+  const cleanupVoicesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/cleanup-voices", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${password}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to cleanup voices");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      alert(`Voice cleanup completed: ${data.deleted} deleted, ${data.errors} errors`);
+    },
+  });
+
   const handleLogin = () => {
     if (password === "admin123") {
       setIsAuthenticated(true);
@@ -214,7 +246,20 @@ export default function Admin() {
         {/* Users Tab */}
         {activeTab === "users" && (
           <div className="glass-card rounded-xl p-8">
-            <h2 className="text-2xl font-semibold mb-6">User Management</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold">User Management</h2>
+              <button
+                onClick={() => {
+                  if (confirm("Are you sure you want to delete ALL cloned voices from ElevenLabs? This action cannot be undone.")) {
+                    cleanupVoicesMutation.mutate();
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
+                disabled={cleanupVoicesMutation.isPending}
+              >
+                {cleanupVoicesMutation.isPending ? "Cleaning..." : "Cleanup All Voices"}
+              </button>
+            </div>
           
             {isLoading ? (
               <div className="text-center py-8">Loading users...</div>
@@ -278,17 +323,32 @@ export default function Admin() {
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4">
-                        {editingUser !== user.id && (
-                          <button
-                            onClick={() => {
-                              setEditingUser(user.id);
-                              setNewCredits(user.credits.toString());
-                            }}
-                            className="secondary-button px-3 py-1 rounded text-sm"
-                          >
-                            Edit Credits
-                          </button>
-                        )}
+                        <div className="flex gap-2">
+                          {editingUser !== user.id && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingUser(user.id);
+                                  setNewCredits(user.credits.toString());
+                                }}
+                                className="secondary-button px-3 py-1 rounded text-sm"
+                              >
+                                Edit Credits
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete user ${user.email}? This will also delete all their replicas and chat messages.`)) {
+                                    deleteUserMutation.mutate(user.id);
+                                  }
+                                }}
+                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
+                                disabled={deleteUserMutation.isPending}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
