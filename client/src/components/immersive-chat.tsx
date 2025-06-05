@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Send, Upload, X } from "lucide-react";
+import UpgradeOverlay from "./upgrade-overlay";
 
 interface Message {
   role: "user" | "assistant";
@@ -113,6 +114,8 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-cyan-900/20 backdrop-blur-3xl">
+      {/* Upgrade Overlay - Show when messages exhausted */}
+      {messagesRemaining <= 0 && <UpgradeOverlay />}
       {/* Floating Photos Background */}
       {uploadedPhotos.map((photo, index) => (
         <div
@@ -268,11 +271,6 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
                 <Send className="w-5 h-5" />
               </button>
             </div>
-            {messagesRemaining <= 0 && (
-              <div className="mt-3 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm text-center">
-                Message limit reached. You have used all 5 messages for this account.
-              </div>
-            )}
           </div>
         </div>
       </div>

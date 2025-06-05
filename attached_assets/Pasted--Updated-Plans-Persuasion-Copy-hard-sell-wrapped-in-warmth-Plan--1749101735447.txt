@@ -1,0 +1,69 @@
+### 💸 Updated Plans & Persuasion Copy (hard-sell wrapped in warmth)
+
+| Plan                                                                            | Price / mo | “Nice” Copy users see                                                                                                                  | Hidden Psychological lever (why it sells)                                                                     |
+| ------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Starter – First Light**                                                       | **\$24**   | “A little hello whenever you need it — 20 minutes of voice, five treasured photos, and space for quick catch-ups.”                     | **Loss-leader anchor.** Priced low to make \$99 feel painless.                                                |
+| **Pro – Forever Within** <br><span style="color:#f59e0b;">★ Most Loved ★</span> | **\$99**   | “Turn memories into daily moments: twice the voice time, richer photo gallery, faster replies, and custom fine-tuning as you grow.”    | **Goldilocks magnet.** Framed as the community favorite so buyers fear missing out on the “right” experience. |
+| **Elite – Legacy Vault**                                                        | **\$279**  | “A private monument that never fades: hours of conversation, unlimited memories, quarterly re-training, and a dedicated phone number.” | **Luxury signaling.** Sky-high price makes Pro feel like the smart, frugal choice.                            |
+
+*All tiers can be upgraded or downgraded anytime. We’ll migrate every memory, voice, and photo for free.*
+
+---
+
+## 🔧 STRICT IMPLEMENTATION INSTRUCTIONS FOR REPLIT AI
+
+### A. Show the upsell overlay only **after** the user hits the 5-message cap
+
+1. When `messagesRemaining === 0`
+   • Disable the chat input.
+   • Render a full-screen modal overlay with three plan cards (HTML skeleton provided below).
+   • No other UI elements change.
+
+### B. Plan-card CSS (use Tailwind or vanilla CSS)
+
+```html
+<div id="upgrade-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl px-6">
+    <!-- Card -->
+    <div class="plan-card bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col">
+      <h3 class="text-xl font-semibold mb-2">Starter – First Light</h3>
+      <p class="text-3xl font-bold mb-4">$24<span class="text-base font-normal">/mo</span></p>
+      <ul class="text-sm space-y-1 flex-1">
+        <li>20 min voice time</li><li>1 M chat tokens</li><li>5 photos</li>
+      </ul>
+      <button data-plan="starter" class="mt-6 primary-button w-full">Keep It Simple</button>
+    </div>
+    <!-- Repeat for Pro & Elite; Pro gets extra glow and “Most Loved” badge -->
+  </div>
+</div>
+```
+
+CSS essentials:
+
+```css
+.plan-card {transition:transform .3s,box-shadow .3s;}
+.plan-card:hover {transform:translateY(-6px);box-shadow:0 12px 30px -8px rgba(0,0,0,.4);}
+.primary-button {background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:9999px;padding:.75rem 1.5rem;color:#fff;font-weight:600;}
+```
+
+### C. Hook up the buttons
+
+*For demo only* open `https://buy.stripe.com/test_xxx` or your real checkout URL in a new tab.
+
+### D. Persist the message counter
+
+1. **Server-side table**: `users { id, email, messages_remaining INT, replica_created BOOL }`
+2. On every successful assistant reply:
+   `UPDATE users SET messages_remaining = messages_remaining - 1 WHERE id = ?`
+3. On login / page load: fetch `messages_remaining`; render chat input disabled when ≤ 0.
+
+### E. Access-code rule remains
+
+*One code → one account → one replica* (already fixed earlier). Do not touch that logic.
+
+### F. Do **NOT** modify anything else
+
+• Leave working API flow, photo animations, styles, and keys untouched.
+• No new routes, no layout shifts, no console noise.
+
+Deliver exactly this overlay + counter persistence and push.
