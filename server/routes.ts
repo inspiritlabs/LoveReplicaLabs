@@ -9,6 +9,24 @@ const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
+  app.post("/api/auth/validate-code", async (req, res) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: "Access code is required" });
+      }
+      
+      const isValid = await storage.validateAccessCode(code);
+      if (isValid) {
+        res.json({ valid: true });
+      } else {
+        res.status(400).json({ error: "Invalid or already used access code" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Validation error" });
+    }
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);

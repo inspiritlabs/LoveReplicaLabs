@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import AccessCodeValidator from "@/components/access-code-validator";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -10,12 +11,14 @@ export default function Home() {
   const [accessCode, setAccessCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showAccessValidator, setShowAccessValidator] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
+    
     if (!isSignIn && !accessCode.trim()) {
-      setError("Access code is required for registration");
+      setShowAccessValidator(true);
       return;
     }
     
@@ -36,7 +39,6 @@ export default function Home() {
 
       if (response.ok) {
         const data = await response.json();
-        // Store user data in localStorage
         localStorage.setItem("user", JSON.stringify(data.user));
         setLocation("/dashboard");
       } else {
@@ -48,6 +50,11 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleValidCode = (code: string) => {
+    setAccessCode(code);
+    setShowAccessValidator(false);
   };
 
   return (
