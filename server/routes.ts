@@ -350,9 +350,9 @@ Respond naturally as this person would, incorporating these traits into your com
         return res.status(404).json({ error: "Replica not found" });
       }
 
-      // Check user credits
-      if ((replicaUser.credits || 0) <= 0) {
-        return res.status(402).json({ error: "Insufficient credits" });
+      // Check user message limit
+      if ((replicaUser.messagesRemaining || 0) <= 0) {
+        return res.status(402).json({ error: "Message limit reached" });
       }
 
       // Build system prompt with personality traits
@@ -467,11 +467,11 @@ Respond naturally as this person would, incorporating these traits into your com
         feedbackText: null,
       });
 
-      // Deduct 1 credit
-      const newCredits = (replicaUser.credits || 0) - 1;
-      await storage.updateUserCredits(replicaUser.id, newCredits);
+      // Deduct 1 message from remaining count
+      const updatedUser = await storage.decrementUserMessages(replicaUser.id);
+      const newMessagesRemaining = updatedUser?.messagesRemaining || 0;
 
-      console.log("Chat completed successfully, credits remaining:", newCredits);
+      console.log("Chat completed successfully, messages remaining:", newMessagesRemaining);
 
       res.json({
         userMessage: {
@@ -486,7 +486,7 @@ Respond naturally as this person would, incorporating these traits into your com
           content: aiMessage,
           audioUrl: audioUrl,
         },
-        creditsRemaining: newCredits
+        messagesRemaining: newMessagesRemaining
       });
 
     } catch (error) {
