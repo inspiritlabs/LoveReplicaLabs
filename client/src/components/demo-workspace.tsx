@@ -387,16 +387,11 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     setIsProcessing(true)
 
     try {
-      const response = await fetch("/api/chat/ai-response", {
+      const response = await fetch(`/api/replicas/${currentReplica.id}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: currentMessage,
-          replicaId: currentReplica.id,
-          personalityTraits,
-          personalityDescription,
-          voiceId,
-          userId: user.id,
+          content: currentMessage,
         }),
       })
 
@@ -404,29 +399,27 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
         const data = await response.json()
         
         const aiMessage: Message = {
-          id: data.messageId,
+          id: data.aiMessage.id,
           role: "assistant",
-          content: data.message,
+          content: data.aiMessage.content,
           feedback: null,
         }
 
         setChatMessages((prev) => [...prev, aiMessage])
         
         // Auto-play the audio response
-        if (data.audioUrl) {
-          const audio = new Audio(data.audioUrl)
+        if (data.aiMessage.audioUrl) {
+          const audio = new Audio(data.aiMessage.audioUrl)
           audio.play().catch(console.error)
         }
         
-        setMessagesRemaining((prev) => {
-          const remaining = prev - 1
-          if (remaining <= 0) {
-            setShowUpgradeOverlay(true)
-          }
-          return remaining
-        })
+        setMessagesRemaining(data.creditsRemaining)
+        if (data.creditsRemaining <= 0) {
+          setShowUpgradeOverlay(true)
+        }
       } else {
-        throw new Error("Failed to get AI response")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to get AI response")
       }
     } catch (error) {
       console.error("Error sending message:", error)
@@ -986,7 +979,13 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           <ImmersiveChat
             replica={selectedReplica}
             user={user}
-            onBack={() => setShowImmersiveChat(false)}
+            initialMessages={chatMessages}
+            initialMessagesRemaining={messagesRemaining}
+            onBack={(updatedMessages: Message[], updatedRemaining: number) => {
+              setChatMessages(updatedMessages);
+              setMessagesRemaining(updatedRemaining);
+              setShowImmersiveChat(false);
+            }}
           />
         )}
       </div>
