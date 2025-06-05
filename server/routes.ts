@@ -212,10 +212,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { message, replicaId, personalityTraits, personalityDescription, voiceId, userId } = req.body;
 
-      // Check user credits
+      // Check user message limit
       const user = await storage.getUser(userId);
-      if (!user || (user.credits || 0) <= 0) {
-        return res.status(402).json({ error: "Insufficient credits" });
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+      if ((user.messagesRemaining || 0) <= 0) {
+        return res.status(400).json({ error: "Message limit reached" });
       }
 
       // Build system prompt based on personality
@@ -300,15 +303,14 @@ Respond naturally as this person would, incorporating these traits into your com
         feedbackText: null,
       });
 
-      // Deduct 1 credit after successful response
-      const newCredits = (user.credits || 0) - 1;
-      await storage.updateUserCredits(userId, newCredits);
+      // Decrement messages remaining after successful response
+      const updatedUser = await storage.decrementUserMessages(userId);
 
       res.json({
         message: aiMessage,
         audioUrl: `data:audio/mpeg;base64,${audioBase64}`,
         messageId: assistantMessage.id,
-        creditsRemaining: newCredits,
+        messagesRemaining: updatedUser?.messagesRemaining || 0,
       });
 
     } catch (error) {
