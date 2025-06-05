@@ -780,38 +780,21 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
 
             {/* Chat Interface */}
             {generationComplete && (
-              <div className="space-y-6">
-                <div className="text-center mb-8">
-                  <h3 className="text-3xl font-semibold cosmic-glow mb-4">Your AI Companion is Ready!</h3>
-                  <p className="text-gray-300">
-                    Start chatting below. You have{" "}
-                    <span className="text-purple-400 font-medium">{messagesRemaining}</span> messages remaining.
-                  </p>
-                </div>
-
-                {/* Chat Header */}
-                <div className="glass-card rounded-xl p-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                        <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">{name || "AI Companion"}</h4>
-                        <p className="text-sm text-gray-400">Ready to chat</p>
-                      </div>
+              <div className="relative min-h-screen bg-gradient-to-br from-indigo-900/20 via-purple-900/30 to-pink-900/20 backdrop-blur-sm">
+                {/* Header */}
+                <div className="absolute top-0 left-0 right-0 z-20 p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="text-center flex-1">
+                      <h1 className="text-2xl font-semibold text-white cosmic-glow">{name || "AI Companion"}</h1>
+                      <p className="text-sm text-white/60">Digital Replica • {messagesRemaining} messages remaining</p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-400">Messages:</span>
-                      <span className="text-sm font-medium text-purple-400">{messagesRemaining}</span>
                       <button
                         onClick={() => {
                           setSelectedReplica(currentReplica);
                           setShowImmersiveChat(true);
                         }}
-                        className="primary-button px-8 py-4 rounded-xl text-white text-lg font-bold transform hover:scale-105 transition-all duration-300 shadow-xl"
+                        className="primary-button px-6 py-3 rounded-xl text-white font-bold transform hover:scale-105 transition-all duration-300 shadow-xl"
                         style={{
                           background: 'linear-gradient(135deg, #8b5cf6, #f472b6)',
                           boxShadow: '0 15px 30px rgba(139, 92, 246, 0.4)',
@@ -821,124 +804,142 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                       </button>
                       <button
                         onClick={resetConversation}
-                        className="secondary-button p-2 rounded-lg text-white"
+                        className="secondary-button p-3 rounded-xl text-white"
                       >
-                        <RefreshCw className="w-4 h-4" />
+                        <RefreshCw className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Chat Messages */}
-                <div
+
+
+                {/* Messages Area */}
+                <div 
                   ref={chatContainerRef}
-                  className="glass-card rounded-xl p-6 h-96 overflow-y-auto space-y-4 scroll-smooth"
+                  className="absolute inset-0 pt-24 pb-32 px-6 overflow-y-auto"
                 >
-                  {chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex items-start gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-                    >
+                  <div className="max-w-4xl mx-auto space-y-6">
+                    {chatMessages.map((msg) => (
                       <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          msg.role === "user"
-                            ? "bg-gradient-to-r from-blue-500 to-purple-500"
-                            : "bg-gradient-to-r from-purple-500 to-pink-500"
+                        key={msg.id}
+                        className={`flex items-end gap-4 ${
+                          msg.role === "user" ? "justify-end" : "justify-start"
                         }`}
                       >
-                        {msg.role === "user" ? (
-                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div
-                        className={`message-bubble rounded-lg p-4 ${
-                          msg.role === "user" ? "user-message text-white" : "assistant-message"
-                        }`}
-                      >
-                        <p className="text-sm">{msg.content}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-xs text-gray-400">
-                            {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
+                        <div className="flex flex-col space-y-2 max-w-[70%]">
+                          {msg.role === "user" && (
+                            <div className="text-xs text-white/60 text-right pr-2">
+                              You
+                            </div>
+                          )}
+                          <div
+                            className={`relative rounded-2xl px-5 py-3 transition-all duration-300 hover:scale-[1.02] ${
+                              msg.role === "user" 
+                                ? "bg-white/5 backdrop-blur-md ml-auto" 
+                                : "bg-black/10 backdrop-blur-md"
+                            }`}
+                            style={{
+                              boxShadow: msg.role === "user" 
+                                ? "0 8px 32px rgba(255, 255, 255, 0.1)" 
+                                : "0 8px 32px rgba(0, 0, 0, 0.2)",
+                            }}
+                          >
+                            <p className="text-white leading-relaxed font-medium">{msg.content}</p>
+                            {msg.role === "assistant" && (
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  onClick={() => submitFeedback(msg.id, "positive")}
+                                  className={`text-xs hover:text-green-400 p-1 rounded transition-colors ${
+                                    msg.feedback === "positive" ? "text-green-400" : "text-white/40"
+                                  }`}
+                                >
+                                  <ThumbsUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => submitFeedback(msg.id, "negative")}
+                                  className={`text-xs hover:text-red-400 p-1 rounded transition-colors ${
+                                    msg.feedback === "negative" ? "text-red-400" : "text-white/40"
+                                  }`}
+                                >
+                                  <ThumbsDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           {msg.role === "assistant" && (
-                            <div className="flex gap-2 ml-auto">
-                              <button
-                                onClick={() => submitFeedback(msg.id, "positive")}
-                                className={`text-xs hover:text-green-400 ${
-                                  msg.feedback === "positive" ? "text-green-400" : "text-gray-400"
-                                }`}
-                              >
-                                <ThumbsUp className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => submitFeedback(msg.id, "negative")}
-                                className={`text-xs hover:text-red-400 ${
-                                  msg.feedback === "negative" ? "text-red-400" : "text-gray-400"
-                                }`}
-                              >
-                                <ThumbsDown className="w-3 h-3" />
-                              </button>
+                            <div className="text-xs text-white/60 pl-2">
+                              {name || "AI Companion"}
                             </div>
                           )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {/* Processing Indicator */}
-                  {isProcessing && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                        </svg>
-                      </div>
-                      <div className="assistant-message rounded-lg p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="audio-wave">
-                            <div className="audio-wave-bar" />
-                            <div className="audio-wave-bar" />
-                            <div className="audio-wave-bar" />
+                    {/* Processing Indicator */}
+                    {isProcessing && (
+                      <div className="flex items-end gap-4 justify-start">
+                        <div className="flex flex-col space-y-2 max-w-[70%]">
+                          <div
+                            className="relative rounded-2xl px-5 py-3 bg-black/10 backdrop-blur-md"
+                            style={{
+                              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="flex gap-1">
+                                {[...Array(3)].map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className="w-2 h-2 bg-white/60 rounded-full animate-bounce"
+                                    style={{ animationDelay: `${i * 0.2}s` }}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-white/60 text-sm">Thinking...</span>
+                            </div>
                           </div>
-                          <span className="text-sm text-gray-400">AI is thinking...</span>
+                          <div className="text-xs text-white/60 pl-2">
+                            {name || "AI Companion"}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
-                {/* Chat Input */}
-                <div className="glass-card rounded-xl p-4">
-                  <div className="flex gap-3">
-                    <textarea
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Type your message..."
-                      className="flex-1 p-3 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:border-purple-500 focus:outline-none transition-colors"
-                      rows={2}
-                      disabled={messagesRemaining <= 0}
-                    />
-                    <button
-                      onClick={sendMessage}
-                      disabled={!message.trim() || isProcessing || messagesRemaining <= 0}
-                      className="primary-button px-6 py-3 rounded-lg font-medium text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Send className="w-4 h-4" />
-                      Send
-                    </button>
+                {/* Input Area */}
+                <div className="absolute bottom-0 left-0 right-0 z-20 p-6">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-black/20 backdrop-blur-xl rounded-3xl border border-white/10 p-4">
+                      <div className="flex items-end gap-4">
+                        <div className="flex-1">
+                          <textarea
+                            disabled={messagesRemaining <= 0}
+                            onKeyPress={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                sendMessage();
+                              }
+                            }}
+                            placeholder={messagesRemaining <= 0 ? "Message limit reached..." : "Type your message..."}
+                            className="w-full bg-transparent text-white placeholder-white/50 border-none outline-none resize-none min-h-[24px] max-h-32"
+                            rows={1}
+                          />
+                        </div>
+                        <button
+                          onClick={sendMessage}
+                          disabled={!message.trim() || isProcessing || messagesRemaining <= 0}
+                          className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full text-white hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
 
 
