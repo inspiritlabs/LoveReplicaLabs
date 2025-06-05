@@ -91,7 +91,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [message, setMessage] = useState("")
   const [chatMessages, setChatMessages] = useState<Message[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
-  const [messagesRemaining, setMessagesRemaining] = useState(10)
+  const [messagesRemaining, setMessagesRemaining] = useState(5)
   const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false)
   const [currentReplica, setCurrentReplica] = useState<any>(null)
 
@@ -460,7 +460,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
         feedback: null,
       },
     ])
-    setMessagesRemaining(10)
+    setMessagesRemaining(5)
     setShowUpgradeOverlay(false)
   }
 
@@ -694,7 +694,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                           <input
                             type="range"
                             min="1"
-                            max="10"
+                            max="5"
                             value={value}
                             onChange={(e) => handleTraitChange(trait as TraitName, parseInt(e.target.value))}
                             className="trait-slider w-full"
@@ -960,7 +960,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
               </div>
               <h3 className="text-2xl font-semibold mb-4 cosmic-glow">Demo Limit Reached</h3>
               <p className="text-gray-300 mb-6">
-                You've used all 10 demo messages. Upgrade to continue unlimited conversations with your AI companion.
+                You've used all 5 demo messages. Upgrade to continue unlimited conversations with your AI companion.
               </p>
 
               <div className="space-y-3">
