@@ -578,6 +578,74 @@ Respond naturally as this person would, incorporating these traits into your com
     }
   });
 
+  // Admin delete user route
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    try {
+      const adminPassword = req.headers.authorization;
+      if (adminPassword !== "Bearer admin123") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userId = parseInt(req.params.id);
+      await storage.deleteUser(userId);
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Admin cleanup all ElevenLabs voices route
+  app.post("/api/admin/cleanup-voices", async (req, res) => {
+    try {
+      const adminPassword = req.headers.authorization;
+      if (adminPassword !== "Bearer admin123") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      // Get all voices from ElevenLabs
+      const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
+        headers: { "xi-api-key": ELEVEN_API_KEY }
+      });
+
+      if (!voicesResponse.ok) {
+        throw new Error("Failed to fetch voices from ElevenLabs");
+      }
+
+      const voicesData = await voicesResponse.json();
+      const clonedVoices = voicesData.voices.filter((voice: any) => voice.category === "cloned");
+
+      let deletedCount = 0;
+      let errorCount = 0;
+
+      // Delete each cloned voice
+      for (const voice of clonedVoices) {
+        try {
+          const deleteResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voice.voice_id}`, {
+            method: "DELETE",
+            headers: { "xi-api-key": ELEVEN_API_KEY }
+          });
+
+          if (deleteResponse.ok) {
+            deletedCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          errorCount++;
+        }
+      }
+
+      res.json({
+        message: `Voice cleanup completed`,
+        deleted: deletedCount,
+        errors: errorCount,
+        total: clonedVoices.length
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to cleanup voices" });
+    }
+  });
+
   app.get("/api/admin/stats", async (req, res) => {
     try {
       const adminPassword = req.headers.authorization;
