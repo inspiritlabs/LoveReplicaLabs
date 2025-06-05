@@ -10,6 +10,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   updateUserCredits(userId: number, credits: number): Promise<User | undefined>;
   decrementUserMessages(userId: number): Promise<User | undefined>;
+  deleteUser(userId: number): Promise<void>;
   
   // Access code methods
   validateAccessCode(code: string): Promise<boolean>;
