@@ -5,25 +5,29 @@ import { Send, Upload, X } from "lucide-react";
 import UpgradeOverlay from "./upgrade-overlay";
 
 interface Message {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   id: string;
   audioUrl?: string | null;
+  feedback?: "positive" | "negative" | null;
+  feedbackText?: string;
 }
 
 interface ImmersiveChatProps {
   replica: any;
   user: any;
-  onBack: () => void;
+  initialMessages?: Message[];
+  initialMessagesRemaining?: number;
+  onBack: (updatedMessages: Message[], updatedRemaining: number) => void;
 }
 
-export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function ImmersiveChat({ replica, user, initialMessages, initialMessagesRemaining, onBack }: ImmersiveChatProps) {
+  const [messages, setMessages] = useState<Message[]>(initialMessages || []);
   const [inputValue, setInputValue] = useState("");
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>(replica.photos || []);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
-  const [messagesRemaining, setMessagesRemaining] = useState(user.messagesRemaining || 5);
+  const [messagesRemaining, setMessagesRemaining] = useState(initialMessagesRemaining || user.messagesRemaining || 5);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const queryClient = useQueryClient();
@@ -150,7 +154,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       <div className="absolute top-0 left-0 right-0 z-20 p-6">
         <div className="flex items-center justify-between">
           <button
-            onClick={onBack}
+            onClick={() => onBack(messages, messagesRemaining)}
             className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
