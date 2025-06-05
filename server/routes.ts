@@ -236,28 +236,46 @@ Personality traits (1-10 scale):
 Respond naturally as this person would, incorporating these traits into your communication style.`;
 
       // Call OpenAI API
+      const requestPayload = {
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
+        ],
+        max_tokens: 150,
+        temperature: 0.8,
+      };
+
+      console.log("=== OpenAI Request Debug ===");
+      console.log("URL:", "https://api.openai.com/v1/chat/completions");
+      console.log("Headers:", {
+        "Authorization": `Bearer ${OPENAI_API_KEY ? "***EXISTS***" : "***MISSING***"}`,
+        "Content-Type": "application/json",
+      });
+      console.log("Payload:", JSON.stringify(requestPayload, null, 2));
+
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: message }
-          ],
-          max_tokens: 150,
-          temperature: 0.8,
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
+      console.log("=== OpenAI Response Debug ===");
+      console.log("Status:", openaiResponse.status);
+      console.log("Headers:", Object.fromEntries(openaiResponse.headers.entries()));
+
+      const responseText = await openaiResponse.text();
+      console.log("Raw Response:", responseText);
+
       if (!openaiResponse.ok) {
-        throw new Error("OpenAI API error");
+        console.error("OpenAI API Error:", responseText);
+        throw new Error(`OpenAI API error: ${openaiResponse.status} - ${responseText}`);
       }
 
-      const openaiData = await openaiResponse.json();
+      const openaiData = JSON.parse(responseText);
       const aiMessage = openaiData.choices[0].message.content;
 
       // Generate audio with ElevenLabs using the created voice
