@@ -1,11 +1,32 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertReplicaSchema, insertChatMessageSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
+import multer from "multer";
 
-const OPENAI_API_KEY = "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";
-const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY;
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept audio files
+    if (file.mimetype.startsWith('audio/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only audio files are allowed'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -148,11 +169,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Voice upload and creation endpoint
-  app.post("/api/voice/create", async (req, res) => {
+  app.post("/api/create-voice", upload.single('voice_file'), async (req, res) => {
     try {
-      const { audioFile, name } = req.body;
+      const file = req.file;
+      const name = req.body.name || "Voice Clone";
       
-      if (!audioFile) {
+      if (!file) {
         return res.status(400).json({ error: "Audio file required" });
       }
 
@@ -160,20 +182,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "ElevenLabs API key not configured" });
       }
 
-      // Convert base64 to buffer
-      const base64Data = audioFile.includes(',') ? audioFile.split(',')[1] : audioFile;
-      const audioBuffer = Buffer.from(base64Data, 'base64');
-      
-      // Validate file size (max 6MB)
-      if (audioBuffer.length > 6 * 1024 * 1024) {
-        return res.status(400).json({ error: "Audio file too large. Maximum 6MB allowed." });
+      // Validate file size (max 10MB for ElevenLabs)
+      if (file.size > 10 * 1024 * 1024) {
+        return res.status(400).json({ error: "Audio file too large. Maximum 10MB allowed." });
       }
 
       const formData = new FormData();
-      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
-      formData.append("files", blob, "voice.wav");
-      formData.append("name", name || "Voice Clone");
-      formData.append("description", `Voice clone created for ${name || "user"}`);
+      const blob = new Blob([file.buffer], { type: file.mimetype });
+      formData.append("files", blob, file.originalname);
+      formData.append("name", name);
+      formData.append("description", `Voice clone created for ${name}`);
 
       const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
         method: "POST",
