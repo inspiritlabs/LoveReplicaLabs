@@ -18,7 +18,7 @@ interface ImmersiveChatProps {
   user: any;
   initialMessages?: Message[];
   initialMessagesRemaining?: number;
-  onBack: (updatedMessages: Message[], updatedRemaining: number) => void;
+  onBack: () => void;
 }
 
 export default function ImmersiveChat({ replica, user, initialMessages, initialMessagesRemaining, onBack }: ImmersiveChatProps) {
@@ -154,10 +154,7 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
       <div className="absolute top-0 left-0 right-0 z-20 p-6">
         <div className="flex items-center justify-between">
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              onBack(messages, messagesRemaining);
-            }}
+            onClick={onBack}
             className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
@@ -165,7 +162,9 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
           </button>
           <div className="text-center">
             <h1 className="text-xl font-semibold text-white">{replica.name}</h1>
-            <p className="text-sm text-white/60">Digital Replica</p>
+            <p className="text-sm text-white/60">
+              {messagesRemaining} messages remaining
+            </p>
           </div>
           <button
             onClick={() => setShowPhotoUpload(!showPhotoUpload)}
