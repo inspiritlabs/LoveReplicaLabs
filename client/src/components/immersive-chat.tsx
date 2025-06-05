@@ -22,6 +22,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>(replica.photos || []);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [messagesRemaining, setMessagesRemaining] = useState(user.messagesRemaining || 5);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const queryClient = useQueryClient();
@@ -49,6 +50,9 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       setMessages(prev => [...prev, data.userMessage, data.aiMessage]);
       if (data.aiMessage.audioUrl) {
         playAudio(data.aiMessage.audioUrl);
+      }
+      if (data.messagesRemaining !== undefined) {
+        setMessagesRemaining(data.messagesRemaining);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
@@ -244,6 +248,7 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
                 <textarea
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
+                  disabled={messagesRemaining <= 0}
                   onKeyPress={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
