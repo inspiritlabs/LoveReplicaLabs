@@ -262,12 +262,17 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
               </div>
               <button
                 onClick={handleSendMessage}
-                disabled={!inputValue.trim() || sendMessageMutation.isPending}
+                disabled={!inputValue.trim() || sendMessageMutation.isPending || messagesRemaining <= 0}
                 className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full text-white hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
+            {messagesRemaining <= 0 && (
+              <div className="mt-3 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm text-center">
+                Message limit reached. You have used all 5 messages for this account.
+              </div>
+            )}
           </div>
         </div>
       </div>
