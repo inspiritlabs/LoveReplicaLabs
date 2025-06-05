@@ -132,19 +132,19 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
       // Start upload and voice creation
       setIsUploading(true);
 
-      // Create voice with ElevenLabs
+      // Create voice with ElevenLabs using the correct endpoint
       const reader = new FileReader();
-      reader.onload = async (e) => {
+      reader.onload = async () => {
         try {
-          const audioData = e.target?.result as ArrayBuffer;
-          const formData = new FormData();
-          formData.append("name", name || "Voice Clone");
-          formData.append("files", new Blob([audioData], { type: file.type }), file.name);
-          formData.append("description", "Voice clone for digital replica");
-
-          const response = await fetch("/api/create-voice", {
+          const audioBase64 = reader.result as string;
+          
+          const response = await fetch("/api/voice/create", {
             method: "POST",
-            body: formData,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              audioFile: audioBase64,
+              name: name || "Custom Voice"
+            })
           });
 
           if (response.ok) {
@@ -161,13 +161,21 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
           setIsUploading(false);
         }
       };
-      reader.readAsArrayBuffer(file);
+      reader.readAsDataURL(file);
     };
+
+    audio.onerror = () => {
+      setUploadError("Could not process audio file. Please try another file.");
+      setAudioFile(null);
+      setAudioUrl(null);
+      URL.revokeObjectURL(url);
+    };
+
     audio.src = url;
   };
 
   const handleTraitChange = (trait: string, value: number) => {
-    setPersonalityTraits(prev => ({ ...prev, [trait]: value }));
+    setPersonalityTraits((prev: any) => ({ ...prev, [trait]: value }));
   };
 
   const handleSendMessage = () => {
@@ -206,15 +214,15 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
   // Show setup interface if voice hasn't been created yet
   if (showSetup) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm overflow-y-auto">
         <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="glass-card rounded-2xl p-8 w-full max-w-2xl">
+          <div className="glass-card rounded-2xl p-8 w-full max-w-2xl my-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold cosmic-glow mb-2">Create Your AI Replica</h1>
               <p className="text-gray-400">Set up your digital companion's voice and personality</p>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
               {/* Name Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Replica Name</label>
