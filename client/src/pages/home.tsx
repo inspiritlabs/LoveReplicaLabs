@@ -57,6 +57,10 @@ export default function Home() {
     setShowAccessValidator(false);
   };
 
+  if (showAccessValidator) {
+    return <AccessCodeValidator onValidCode={handleValidCode} />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="glass-card rounded-2xl p-8 w-full max-w-md">
