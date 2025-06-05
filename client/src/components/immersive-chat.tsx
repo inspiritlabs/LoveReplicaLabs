@@ -52,8 +52,8 @@ export default function ImmersiveChat({ replica, user, onBack }: ImmersiveChatPr
       if (data.aiMessage.audioUrl) {
         playAudio(data.aiMessage.audioUrl);
       }
-      if (data.messagesRemaining !== undefined) {
-        setMessagesRemaining(data.messagesRemaining);
+      if (data.creditsRemaining !== undefined) {
+        setMessagesRemaining(data.creditsRemaining);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
