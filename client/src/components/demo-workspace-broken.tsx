@@ -82,250 +82,40 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generationTime, setGenerationTime] = useState(25)
   const [generationProgress, setGenerationProgress] = useState(0)
+  const [generationTime, setGenerationTime] = useState(25)
+  const [generationError, setGenerationError] = useState<string | null>(null)
   const [generationComplete, setGenerationComplete] = useState(false)
 
   // Chat state
-  const [chatMessages, setChatMessages] = useState<Message[]>([])
   const [message, setMessage] = useState("")
+  const [chatMessages, setChatMessages] = useState<Message[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
-  const [messagesRemaining, setMessagesRemaining] = useState(5)
+  const [messagesRemaining, setMessagesRemaining] = useState(10)
   const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false)
-
-  // Current replica state
   const [currentReplica, setCurrentReplica] = useState<any>(null)
 
   // Refs
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null)
-  const isMounted = useRef(true)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const chatContainerRef = useRef<HTMLDivElement | null>(null)
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
+  const isMounted = useRef(false)
 
+  // Set isMounted to true when component mounts
   useEffect(() => {
+    isMounted.current = true
     return () => {
       isMounted.current = false
     }
   }, [])
 
-  // Handle trait changes
-  const handleTraitChange = (trait: TraitName, value: number) => {
-    setPersonalityTraits((prev) => ({
-      ...prev,
-      [trait]: value,
-    }))
-  }
-
-  // File validation and upload handling
-  const handleFileValidation = (file: File) => {
-    setUploadError(null)
-
-    if (file.type.startsWith("image/")) {
-      const imageUrl = URL.createObjectURL(file)
-      setPhotos(prev => [...prev, imageUrl])
-      return
+  // Focus name input on load
+  useEffect(() => {
+    if (nameInputRef.current) {
+      nameInputRef.current.focus()
     }
-
-    const validTypes = ["audio/wav", "audio/mpeg", "audio/mp3", "audio/x-m4a"]
-    if (!validTypes.includes(file.type)) {
-      setUploadError("Please upload a WAV, MP3, or M4A file.")
-      return
-    }
-
-    if (file.size > 6 * 1024 * 1024) {
-      setUploadError("File size exceeds 6MB limit.")
-      return
-    }
-
-    const url = URL.createObjectURL(file)
-    setAudioFile(file)
-    setAudioUrl(url)
-
-    const audio = new Audio()
-    audio.onloadedmetadata = () => {
-      if (!isMounted.current) return
-
-      const duration = audio.duration
-      if (duration < 10 || duration > 60) {
-        setUploadError("Audio must be between 10 and 60 seconds.")
-        setAudioFile(null)
-        setAudioUrl(null)
-        URL.revokeObjectURL(url)
-        return
-      }
-
-      setIsUploading(true)
-
-      const reader = new FileReader()
-      reader.onload = async () => {
-        try {
-          const formData = new FormData()
-          formData.append("voice_file", file)
-          formData.append("name", name || "Generated Voice")
-
-          const response = await fetch("/api/create-voice", {
-            method: "POST",
-            body: formData,
-          })
-
-          if (!response.ok) {
-            throw new Error("Failed to create voice")
-          }
-
-          const data = await response.json()
-          setVoiceId(data.voiceId)
-          console.log("Voice created with ID:", data.voiceId)
-
-        } catch (error) {
-          console.error("Voice creation error:", error)
-          setUploadError("Failed to process voice. Please try again.")
-        } finally {
-          if (isMounted.current) {
-            setIsUploading(false)
-          }
-        }
-      }
-      reader.readAsArrayBuffer(file)
-    }
-    audio.src = url
-  }
-
-  // Generate replica
-  const generateReplica = async () => {
-    if (!name.trim()) {
-      setUploadError("Please enter a name for your replica.")
-      return
-    }
-
-    if (!voiceId) {
-      setUploadError("Please upload a voice sample first.")
-      return
-    }
-
-    if (!consentChecked) {
-      setUploadError("Please confirm consent before proceeding.")
-      return
-    }
-
-    setIsGenerating(true)
-    setGenerationTime(25)
-    setGenerationProgress(0)
-
-    try {
-      const replicaData = {
-        name,
-        voiceId,
-        personalityDescription,
-        personalityTraits,
-        photos,
-        userId: user.id,
-      }
-
-      const response = await fetch("/api/replicas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(replicaData),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to create replica")
-      }
-
-      const replica = await response.json()
-      setCurrentReplica(replica)
-      setSelectedReplica(replica)
-
-      setTimeout(() => {
-        if (isMounted.current) {
-          setIsGenerating(false)
-          setGenerationComplete(true)
-        }
-      }, 25000)
-
-    } catch (error) {
-      console.error("Replica generation error:", error)
-      setUploadError("Failed to generate replica. Please try again.")
-      setIsGenerating(false)
-    }
-  }
-
-  // Reset conversation
-  const resetConversation = () => {
-    setChatMessages([])
-    setMessagesRemaining(5)
-    setShowUpgradeOverlay(false)
-    setMessage("")
-  }
-
-  // Send message function
-  const sendMessage = async () => {
-    if (!message.trim() || isProcessing || !currentReplica) return
-
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: message,
-      feedback: null,
-    }
-
-    setChatMessages((prev) => [...prev, userMessage])
-    const currentMessage = message
-    setMessage("")
-    setIsProcessing(true)
-
-    try {
-      const response = await fetch(`/api/replicas/${currentReplica.id}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: currentMessage,
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        
-        const aiMessage: Message = {
-          id: data.aiMessage.id,
-          role: "assistant",
-          content: data.aiMessage.content,
-          feedback: null,
-        }
-
-        setChatMessages((prev) => [...prev, aiMessage])
-        
-        if (data.aiMessage.audioUrl) {
-          const audio = new Audio(data.aiMessage.audioUrl)
-          audio.play().catch(console.error)
-        }
-        
-        setMessagesRemaining(data.creditsRemaining)
-        if (data.creditsRemaining <= 0) {
-          setShowUpgradeOverlay(true)
-        }
-      } else {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to get AI response")
-      }
-    } catch (error) {
-      console.error("Error sending message:", error)
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
-        feedback: null,
-      }
-      setChatMessages((prev) => [...prev, errorMessage])
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  // Submit feedback
-  const submitFeedback = (messageId: string, type: "positive" | "negative", text?: string) => {
-    setChatMessages((prev) =>
-      prev.map((msg) => (msg.id === messageId ? { ...msg, feedback: type, feedbackText: text } : msg)),
-    )
-  }
+  }, [])
 
   // Scroll to bottom of chat when messages change
   useEffect(() => {
@@ -369,6 +159,313 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     }
   }, [isGenerating, generationTime])
 
+  // Check if form is valid
+  const isFormValid = () => {
+    return (
+      name.trim() !== "" &&
+      audioFile !== null &&
+      voiceId !== null &&
+      personalityDescription.length >= 120 &&
+      Object.values(personalityTraits).some((value) => value !== 5) &&
+      consentChecked
+    )
+  }
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    const file = files[0]
+    handleFileValidation(file)
+  }
+
+  // Handle file drop
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0]
+      handleFileValidation(file)
+    }
+  }
+
+  // Prevent default drag behavior
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  // Validate file
+  const handleFileValidation = (file: File) => {
+    // Reset previous errors
+    setUploadError(null)
+
+    // Check if it's an image file for photos
+    if (file.type.startsWith("image/")) {
+      const imageUrl = URL.createObjectURL(file)
+      setPhotos(prev => [...prev, imageUrl])
+      return
+    }
+
+    // Check file type for audio
+    const validTypes = ["audio/wav", "audio/mpeg", "audio/mp3", "audio/x-m4a"]
+    if (!validTypes.includes(file.type)) {
+      setUploadError("Please upload a WAV, MP3, or M4A file.")
+      return
+    }
+
+    // Check file size (6MB max)
+    if (file.size > 6 * 1024 * 1024) {
+      setUploadError("File size exceeds 6MB limit.")
+      return
+    }
+
+    // Create object URL for preview
+    const url = URL.createObjectURL(file)
+
+    // Set file and URL first
+    setAudioFile(file)
+    setAudioUrl(url)
+
+    // Check audio duration
+    const audio = new Audio()
+    audio.onloadedmetadata = () => {
+      if (!isMounted.current) return
+
+      const duration = audio.duration
+      if (duration < 10 || duration > 60) {
+        setUploadError("Audio must be between 10 and 60 seconds.")
+        setAudioFile(null)
+        setAudioUrl(null)
+        URL.revokeObjectURL(url)
+        return
+      }
+
+      // Start upload and voice creation
+      setIsUploading(true)
+
+      // Create voice with ElevenLabs
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          const audioBase64 = reader.result as string
+          
+          const response = await fetch("/api/voice/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              audioFile: audioBase64,
+              name: name || "Custom Voice"
+            })
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            setVoiceId(data.voiceId)
+            setUploadProgress(100)
+          } else {
+            throw new Error("Voice creation failed")
+          }
+        } catch (error) {
+          console.error("Voice creation error:", error)
+          setUploadError("Failed to create voice. Please try again.")
+        } finally {
+          setIsUploading(false)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+
+    audio.onerror = () => {
+      if (!isMounted.current) return
+      setUploadError("Could not process audio file. Please try another file.")
+      setAudioFile(null)
+      setAudioUrl(null)
+      URL.revokeObjectURL(url)
+    }
+
+    audio.src = url
+  }
+
+  // Toggle audio playback
+  const toggleAudioPlayback = () => {
+    if (!audioRef.current) return
+
+    if (isAudioPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+
+    setIsAudioPlaying(!isAudioPlaying)
+  }
+
+  // Handle audio ended
+  const handleAudioEnded = () => {
+    setIsAudioPlaying(false)
+  }
+
+  // Handle trait change
+  const handleTraitChange = (trait: TraitName, value: number) => {
+    setPersonalityTraits((prev) => ({
+      ...prev,
+      [trait]: value,
+    }))
+  }
+
+
+
+  // Generate demo
+  const generateDemo = async () => {
+    if (!isFormValid()) return
+
+    setIsGenerating(true)
+    setGenerationError(null)
+
+    try {
+      // Create replica in database
+      const response = await fetch("/api/replicas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          name: name,
+          audioUrl: audioUrl,
+          voiceId: voiceId,
+          personalityDescription: personalityDescription,
+          personalityTraits: personalityTraits,
+          photos: photos,
+          isGenerated: false,
+        }),
+      })
+
+      if (response.ok) {
+        const replica = await response.json()
+        setCurrentReplica(replica)
+        
+        // Simulate generation time
+        const timer = setTimeout(() => {
+          if (isMounted.current) {
+            setIsGenerating(false)
+            setGenerationComplete(true)
+            // Update replica as generated
+            fetch(`/api/replicas/${replica.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ isGenerated: true }),
+            })
+          }
+        }, 25000)
+
+        return () => clearTimeout(timer)
+      } else {
+        throw new Error("Failed to create replica")
+      }
+    } catch (error) {
+      console.error("Error creating replica:", error)
+      setGenerationError("Failed to create replica. Please try again.")
+      setIsGenerating(false)
+    }
+  }
+
+  // Send message
+  const sendMessage = async () => {
+    if (!message.trim() || isProcessing || !currentReplica) return
+
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: message,
+      feedback: null,
+    }
+
+    setChatMessages((prev) => [...prev, userMessage])
+    const currentMessage = message
+    setMessage("")
+    setIsProcessing(true)
+
+    try {
+      const response = await fetch(`/api/replicas/${currentReplica.id}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: currentMessage,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        const aiMessage: Message = {
+          id: data.aiMessage.id,
+          role: "assistant",
+          content: data.aiMessage.content,
+          feedback: null,
+        }
+
+        setChatMessages((prev) => [...prev, aiMessage])
+        
+        // Auto-play the audio response
+        if (data.aiMessage.audioUrl) {
+          const audio = new Audio(data.aiMessage.audioUrl)
+          audio.play().catch(console.error)
+        }
+        
+        setMessagesRemaining(data.creditsRemaining)
+        if (data.creditsRemaining <= 0) {
+          setShowUpgradeOverlay(true)
+        }
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to get AI response")
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: "Sorry, I encountered an error. Please try again.",
+        feedback: null,
+      }
+      setChatMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Handle key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  // Reset conversation
+  const resetConversation = () => {
+    setChatMessages([
+      {
+        id: "system-reset",
+        role: "assistant",
+        content: `Hi ${name || "there"}! I'm here to chat whenever you need me. How are you feeling today?`,
+        feedback: null,
+      },
+    ])
+    setMessagesRemaining(10)
+    setShowUpgradeOverlay(false)
+  }
+
+  // Submit feedback
+  const submitFeedback = (messageId: string, type: "positive" | "negative", text?: string) => {
+    setChatMessages((prev) =>
+      prev.map((msg) => (msg.id === messageId ? { ...msg, feedback: type, feedbackText: text } : msg)),
+    )
+
+    // Here you would send the feedback to your API
+  }
+
   return (
     <section id="demo-workspace" className="py-12 min-h-screen" ref={ref}>
       <div className="container mx-auto px-4">
@@ -382,7 +479,9 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           </button>
         </div>
 
+        {/* Premium colorful box around the entire demo */}
         <div className="relative max-w-6xl mx-auto">
+          {/* Colorful gradient border */}
           <div
             className="absolute inset-0 rounded-xl opacity-70"
             style={{
@@ -391,163 +490,263 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
               transform: "scale(1.03)",
             }}
           />
+          
+          <div className="relative premium-card rounded-xl p-8">
+            {!isGenerating && !generationComplete && (
+              <div className="max-w-4xl mx-auto space-y-8">
+                {/* Configuration Panel */}
+                <div className="space-y-6">
+                  {/* Name Input */}
+                  <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                      Name Your AI Companion
+                    </h3>
+                    <input
+                      ref={nameInputRef}
+                      type="text"
+                      placeholder="Enter a name..."
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full p-4 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
+                    />
+                  </div>
 
-          <div className="relative glass-card rounded-xl p-8">
-            {!generationComplete && !isGenerating && (
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium mb-3">Name Your Replica</label>
+                  {/* Audio Upload */}
+                  <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                      </svg>
+                      Voice Sample Upload
+                    </h3>
+                    <div
+                      className="upload-zone rounded-lg p-8 text-center cursor-pointer"
+                      onDrop={handleFileDrop}
+                      onDragOver={handleDragOver}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="mx-auto text-4xl text-gray-400 mb-4 w-12 h-12" />
+                      <p className="text-lg mb-2">Drop files here or click to browse</p>
+                      <p className="text-sm text-gray-400">Audio: WAV, MP3, M4A • 10-60 seconds • Max 6MB</p>
+                      <p className="text-sm text-gray-400">Photos: JPG, PNG • Unlimited uploads for chat backgrounds</p>
                       <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter a name..."
-                        className="w-full p-4 bg-black/30 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
+                        ref={fileInputRef}
+                        type="file"
+                        accept="audio/*,image/*"
+                        onChange={(e) => {
+                          const files = e.target.files
+                          if (files) {
+                            Array.from(files).forEach(file => {
+                              handleFileValidation(file)
+                            })
+                          }
+                        }}
+                        className="hidden"
+                        multiple
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-3">Voice Sample</label>
-                      <div
-                        className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer hover:border-purple-500 transition-colors relative"
-                        onClick={() => document.getElementById("audio-upload")?.click()}
-                      >
-                        <input
-                          id="audio-upload"
-                          type="file"
-                          accept="audio/*"
-                          onChange={(e) => e.target.files?.[0] && handleFileValidation(e.target.files[0])}
-                          className="hidden"
-                        />
-                        {audioUrl ? (
-                          <div className="space-y-4">
-                            <div className="text-green-400 font-medium">Audio uploaded successfully!</div>
-                            <audio controls src={audioUrl} className="w-full" />
+                    {/* Upload Progress */}
+                    {isUploading && (
+                      <div className="mt-4 p-4 bg-black/30 rounded-lg">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Uploading...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div
+                            className="progress-bar h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Audio Preview */}
+                    {audioFile && !isUploading && (
+                      <div className="mt-4 p-4 bg-black/30 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">{audioFile.name}</span>
+                          <button
+                            onClick={() => {
+                              setAudioFile(null)
+                              setAudioUrl(null)
+                              if (audioUrl) URL.revokeObjectURL(audioUrl)
+                            }}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={toggleAudioPlayback}
+                            className="primary-button p-2 rounded-full text-white"
+                          >
+                            {isAudioPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                          </button>
+                          <div className="audio-wave">
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
+                            <div className="audio-wave-bar" />
                           </div>
-                        ) : (
-                          <div className="space-y-4">
-                            <Upload className="w-8 h-8 mx-auto text-gray-400" />
-                            <div>
-                              <p className="text-sm font-medium">Upload voice sample</p>
-                              <p className="text-xs text-gray-400">10-60 seconds, WAV/MP3/M4A, max 6MB</p>
-                            </div>
-                          </div>
+                          <span className="text-sm text-gray-400">Audio ready</span>
+                        </div>
+                        {audioUrl && (
+                          <audio
+                            ref={audioRef}
+                            src={audioUrl}
+                            onEnded={handleAudioEnded}
+                            className="hidden"
+                          />
                         )}
                       </div>
-                      {uploadError && <p className="text-red-400 text-sm mt-2">{uploadError}</p>}
-                      {isUploading && <p className="text-blue-400 text-sm mt-2">Processing voice...</p>}
-                    </div>
+                    )}
 
-                    <div>
-                      <label className="block text-sm font-medium mb-3">Photos (Optional)</label>
-                      <div
-                        className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center cursor-pointer hover:border-purple-500 transition-colors"
-                        onClick={() => document.getElementById("photo-upload")?.click()}
-                      >
-                        <input
-                          id="photo-upload"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(e) => {
-                            if (e.target.files) {
-                              Array.from(e.target.files).forEach(handleFileValidation)
-                            }
-                          }}
-                          className="hidden"
-                        />
-                        <Plus className="w-6 h-6 mx-auto text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-400">Add photos</p>
-                      </div>
-                      {photos.length > 0 && (
-                        <div className="grid grid-cols-3 gap-4 mt-4">
+                    {/* Photos Preview */}
+                    {photos.length > 0 && (
+                      <div className="mt-4 p-4 bg-black/30 rounded-lg">
+                        <h4 className="text-sm font-medium text-white mb-3">Uploaded Photos ({photos.length})</h4>
+                        <div className="flex flex-wrap gap-2">
                           {photos.map((photo, index) => (
                             <div key={index} className="relative">
-                              <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-24 object-cover rounded-lg" />
+                              <img
+                                src={photo}
+                                alt={`Photo ${index + 1}`}
+                                className="w-16 h-16 object-cover rounded-lg border border-white/20"
+                              />
                               <button
                                 onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}
-                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs"
+                                className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-red-600"
                               >
                                 ×
                               </button>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium mb-3">Personality Description</label>
-                      <textarea
-                        value={personalityDescription}
-                        onChange={(e) => setPersonalityDescription(e.target.value)}
-                        placeholder="Describe the personality, mannerisms, and way of speaking..."
-                        className="w-full p-4 bg-black/30 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors resize-none"
-                        rows={6}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-4">Personality Traits</label>
-                      <div className="space-y-4">
-                        {Object.entries(personalityTraits).map(([trait, value]) => (
-                          <div key={trait}>
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm capitalize">{trait}</span>
-                              <span className="text-xs text-gray-400">{value}/10</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="1"
-                              max="10"
-                              value={value}
-                              onChange={(e) => handleTraitChange(trait as TraitName, parseInt(e.target.value))}
-                              className="w-full"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">{traitDescriptions[trait as TraitName]}</p>
-                          </div>
-                        ))}
                       </div>
+                    )}
+
+                    {/* Upload Error */}
+                    {uploadError && (
+                      <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                        {uploadError}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Personality Description */}
+                  <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-pink-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                      </svg>
+                      Personality Description
+                    </h3>
+                    <textarea
+                      placeholder="Describe their personality, mannerisms, and what made them special. Include their sense of humor, how they spoke, their favorite topics, and memorable phrases they used..."
+                      value={personalityDescription}
+                      onChange={(e) => setPersonalityDescription(e.target.value)}
+                      className="w-full h-32 p-4 bg-black/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:border-purple-500 focus:outline-none transition-colors"
+                    />
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-sm text-gray-400">Minimum 120 characters for best results</span>
+                      <span
+                        className={`text-sm ${
+                          personalityDescription.length >= 120 ? "text-green-400" : "text-gray-400"
+                        }`}
+                      >
+                        {personalityDescription.length} / 120
+                      </span>
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      id="consent"
-                      checked={consentChecked}
-                      onChange={(e) => setConsentChecked(e.target.checked)}
-                      className="mt-1"
-                    />
-                    <label htmlFor="consent" className="text-sm text-gray-300">
-                      I confirm that I have the right to use this voice and understand that this AI replica is for personal use only.
-                    </label>
+                  {/* Personality Traits */}
+                  <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-xl font-semibold mb-6 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                      </svg>
+                      Personality Traits
+                    </h3>
+
+                    <div className="space-y-6">
+                      {Object.entries(personalityTraits).map(([trait, value]) => (
+                        <div key={trait}>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="font-medium capitalize">{trait}</label>
+                            <span className="text-sm text-purple-400 font-medium">{value}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={value}
+                            onChange={(e) => handleTraitChange(trait as TraitName, parseInt(e.target.value))}
+                            className="trait-slider w-full"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            {traitDescriptions[trait as TraitName]}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <button
-                    onClick={generateReplica}
-                    disabled={!name.trim() || !voiceId || !consentChecked || isUploading}
-                    className="w-full primary-button py-4 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Generate My Replica
-                  </button>
+
+
+                  {/* Consent and Generate Button */}
+                  <div className="text-center space-y-4">
+                    <label className="flex items-center justify-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={consentChecked}
+                        onChange={(e) => setConsentChecked(e.target.checked)}
+                        className="w-4 h-4 text-purple-500 rounded focus:ring-purple-500"
+                      />
+                      <span className="text-gray-300">
+                        I consent to creating an AI replica and understand the technology limitations
+                      </span>
+                    </label>
+                    <button
+                      onClick={generateDemo}
+                      disabled={!isFormValid()}
+                      className="w-full max-w-md mx-auto primary-button px-16 py-6 rounded-2xl font-bold text-xl text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 transform hover:scale-105 transition-all duration-300 shadow-2xl"
+                      style={{
+                        background: 'linear-gradient(135deg, #8b5cf6, #f472b6, #06b6d4)',
+                        boxShadow: '0 20px 40px rgba(139, 92, 246, 0.3)',
+                      }}
+                    >
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                      </svg>
+                      Generate AI Companion
+                    </button>
+                  </div>
                 </div>
+
+
               </div>
             )}
 
+            {/* Generation Progress */}
             {isGenerating && (
-              <div className="text-center space-y-6">
-                <h3 className="text-2xl font-semibold cosmic-glow">Creating Your Digital Replica</h3>
-                <p className="text-gray-300">
-                  This may take a few moments. We're analyzing your voice patterns and building your AI companion.
-                </p>
-
+              <div className="text-center space-y-6 py-12">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center mx-auto pulse-glow">
+                  <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <h3 className="text-3xl font-semibold cosmic-glow">Generating Your AI Companion</h3>
+                <p className="text-xl text-gray-300">Processing voice patterns and personality traits...</p>
+                
                 <div className="max-w-md mx-auto">
                   <div className="w-full bg-gray-700 rounded-full h-3 mb-4">
                     <div
@@ -579,8 +778,10 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
               </div>
             )}
 
+            {/* Chat Interface */}
             {generationComplete && (
               <div className="relative min-h-screen bg-gradient-to-br from-indigo-900/20 via-purple-900/30 to-pink-900/20 backdrop-blur-sm">
+                {/* Header */}
                 <div className="absolute top-0 left-0 right-0 z-20 p-6">
                   <div className="flex items-center justify-between">
                     <div className="text-center flex-1">
@@ -611,6 +812,9 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                   </div>
                 </div>
 
+
+
+                {/* Messages Area */}
                 <div 
                   ref={chatContainerRef}
                   className="absolute inset-0 pt-24 pb-32 px-6 overflow-y-auto"
@@ -672,6 +876,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                       </div>
                     ))}
 
+                    {/* Processing Indicator */}
                     {isProcessing && (
                       <div className="flex items-end gap-4 justify-start">
                         <div className="flex flex-col space-y-2 max-w-[70%]">
@@ -703,6 +908,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                   </div>
                 </div>
 
+                {/* Input Area */}
                 <div className="absolute bottom-0 left-0 right-0 z-20 p-6">
                   <div className="max-w-4xl mx-auto">
                     <div className="bg-black/20 backdrop-blur-xl rounded-3xl border border-white/10 p-4">
@@ -736,9 +942,10 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
+
+
+        {/* Upgrade Overlay */}
         {showUpgradeOverlay && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="premium-card rounded-xl p-8 w-full max-w-md text-center">
@@ -770,6 +977,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           </div>
         )}
 
+        {/* Immersive Chat Overlay */}
         {showImmersiveChat && selectedReplica && (
           <ImmersiveChat
             replica={selectedReplica}
