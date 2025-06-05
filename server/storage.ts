@@ -9,6 +9,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserCredits(userId: number, credits: number): Promise<User | undefined>;
+  decrementUserMessages(userId: number): Promise<User | undefined>;
   
   // Access code methods
   validateAccessCode(code: string): Promise<boolean>;
@@ -96,6 +97,15 @@ export class DatabaseStorage implements IStorage {
     const [updatedUser] = await db
       .update(users)
       .set({ credits })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser || undefined;
+  }
+
+  async decrementUserMessages(userId: number): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ messagesRemaining: sql`${users.messagesRemaining} - 1` })
       .where(eq(users.id, userId))
       .returning();
     return updatedUser || undefined;
