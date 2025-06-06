@@ -182,6 +182,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "ElevenLabs API key not configured" });
       }
 
+      console.log("API Key first 10 chars:", ELEVEN_API_KEY?.substring(0, 10));
+      console.log("API Key length:", ELEVEN_API_KEY?.length);
+
       // Validate file size (max 10MB for ElevenLabs)
       if (file.size > 10 * 1024 * 1024) {
         return res.status(400).json({ error: "Audio file too large. Maximum 10MB allowed." });
