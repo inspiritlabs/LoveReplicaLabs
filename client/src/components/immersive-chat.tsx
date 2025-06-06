@@ -18,7 +18,7 @@ interface ImmersiveChatProps {
   user: any;
   initialMessages?: Message[];
   initialMessagesRemaining?: number;
-  onBack: () => void;
+  onBack: (updatedMessages: Message[], updatedRemaining: number) => void;
 }
 
 export default function ImmersiveChat({ replica, user, initialMessages, initialMessagesRemaining, onBack }: ImmersiveChatProps) {
@@ -28,19 +28,6 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>(replica.photos || []);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [messagesRemaining, setMessagesRemaining] = useState(initialMessagesRemaining || user.messagesRemaining || 5);
-  
-  // Setup states
-  const [showSetup, setShowSetup] = useState(!replica.voiceId);
-  const [name, setName] = useState(replica.name || "");
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [personalityDescription, setPersonalityDescription] = useState(replica.personalityDescription || "");
-  const [personalityTraits, setPersonalityTraits] = useState(replica.personalityTraits || {
-    warmth: 5, humor: 5, thoughtfulness: 5, empathy: 5, assertiveness: 5, energy: 5
-  });
-  const [voiceId, setVoiceId] = useState(replica.voiceId);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const queryClient = useQueryClient();
@@ -96,88 +83,6 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
     }
   };
 
-  const handleFileValidation = (file: File) => {
-    setUploadError(null);
-
-    // Check file type for audio
-    const validTypes = ["audio/wav", "audio/mpeg", "audio/mp3", "audio/x-m4a"];
-    if (!validTypes.includes(file.type)) {
-      setUploadError("Please upload a WAV, MP3, or M4A file.");
-      return;
-    }
-
-    // Check file size (6MB max)
-    if (file.size > 6 * 1024 * 1024) {
-      setUploadError("File size exceeds 6MB limit.");
-      return;
-    }
-
-    // Create object URL for preview
-    const url = URL.createObjectURL(file);
-    setAudioFile(file);
-    setAudioUrl(url);
-
-    // Check audio duration
-    const audio = new Audio();
-    audio.onloadedmetadata = () => {
-      const duration = audio.duration;
-      if (duration < 10 || duration > 60) {
-        setUploadError("Audio must be between 10 and 60 seconds.");
-        setAudioFile(null);
-        setAudioUrl(null);
-        URL.revokeObjectURL(url);
-        return;
-      }
-
-      // Start upload and voice creation
-      setIsUploading(true);
-
-      // Create voice with ElevenLabs using the correct endpoint
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const audioBase64 = reader.result as string;
-          
-          const response = await fetch("/api/voice/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              audioFile: audioBase64,
-              name: name || "Custom Voice"
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            setVoiceId(data.voiceId);
-            setShowSetup(false);
-          } else {
-            const errorData = await response.json();
-            setUploadError(errorData.error || "Failed to create voice");
-          }
-        } catch (error) {
-          setUploadError("Failed to create voice. Please try again.");
-        } finally {
-          setIsUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    };
-
-    audio.onerror = () => {
-      setUploadError("Could not process audio file. Please try another file.");
-      setAudioFile(null);
-      setAudioUrl(null);
-      URL.revokeObjectURL(url);
-    };
-
-    audio.src = url;
-  };
-
-  const handleTraitChange = (trait: string, value: number) => {
-    setPersonalityTraits((prev: any) => ({ ...prev, [trait]: value }));
-  };
-
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
     
@@ -210,142 +115,6 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
     ];
     return positions[index % positions.length];
   };
-
-  // Show setup interface if voice hasn't been created yet
-  if (showSetup) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm overflow-y-auto">
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="glass-card rounded-2xl p-8 w-full max-w-2xl my-8">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold cosmic-glow mb-2">Create Your AI Replica</h1>
-              <p className="text-gray-400">Set up your digital companion's voice and personality</p>
-            </div>
-
-            <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
-              {/* Name Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Replica Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter a name for your replica"
-                  className="w-full p-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Voice Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Voice Sample</label>
-                <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center">
-                  {audioUrl ? (
-                    <div className="space-y-3">
-                      <audio controls src={audioUrl} className="w-full" />
-                      <button
-                        onClick={() => {
-                          setAudioFile(null);
-                          setAudioUrl(null);
-                          setUploadError(null);
-                        }}
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        Remove Audio
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        type="file"
-                        id="audio-upload"
-                        accept=".wav,.mp3,.m4a"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileValidation(file);
-                        }}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="audio-upload"
-                        className="cursor-pointer block"
-                      >
-                        <div className="text-gray-400 mb-2">
-                          <Upload className="w-8 h-8 mx-auto mb-2" />
-                          Click to upload voice sample
-                        </div>
-                        <p className="text-xs text-gray-500">10-60 seconds, WAV/MP3/M4A, max 6MB</p>
-                      </label>
-                    </div>
-                  )}
-                </div>
-                {uploadError && (
-                  <p className="text-red-400 text-sm mt-2">{uploadError}</p>
-                )}
-              </div>
-
-              {/* Personality Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Personality Description</label>
-                <textarea
-                  value={personalityDescription}
-                  onChange={(e) => setPersonalityDescription(e.target.value)}
-                  placeholder="Describe your replica's personality, speaking style, and characteristics..."
-                  className="w-full p-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none resize-none"
-                  rows={3}
-                />
-              </div>
-
-              {/* Personality Traits */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-4">Personality Traits</label>
-                <div className="space-y-4">
-                  {Object.entries(personalityTraits).map(([trait, value]) => (
-                    <div key={trait} className="flex items-center justify-between">
-                      <span className="text-gray-300 capitalize">{trait}</span>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="range"
-                          min="1"
-                          max="10"
-                          value={value}
-                          onChange={(e) => handleTraitChange(trait, parseInt(e.target.value))}
-                          className="w-32 accent-purple-500"
-                        />
-                        <span className="text-purple-400 w-6">{value}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4 pt-4">
-                <button
-                  onClick={onBack}
-                  className="flex-1 secondary-button py-3 rounded-lg font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (!audioFile) {
-                      setUploadError("Please upload a voice sample first");
-                      return;
-                    }
-                    handleFileValidation(audioFile);
-                  }}
-                  disabled={isUploading || !audioFile || !name.trim()}
-                  className="flex-1 primary-button py-3 rounded-lg font-semibold disabled:opacity-50"
-                >
-                  {isUploading ? "Creating Voice..." : "Create Replica"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-cyan-900/20 backdrop-blur-3xl">
@@ -385,7 +154,10 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
       <div className="absolute top-0 left-0 right-0 z-20 p-6">
         <div className="flex items-center justify-between">
           <button
-            onClick={onBack}
+            onClick={(e) => {
+              e.preventDefault();
+              onBack(messages, messagesRemaining);
+            }}
             className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
@@ -393,9 +165,7 @@ export default function ImmersiveChat({ replica, user, initialMessages, initialM
           </button>
           <div className="text-center">
             <h1 className="text-xl font-semibold text-white">{replica.name}</h1>
-            <p className="text-sm text-white/60">
-              {messagesRemaining} messages remaining
-            </p>
+            <p className="text-sm text-white/60">Digital Replica</p>
           </div>
           <button
             onClick={() => setShowPhotoUpload(!showPhotoUpload)}
