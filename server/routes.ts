@@ -1,32 +1,11 @@
-import type { Express, Request } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertReplicaSchema, insertChatMessageSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
-import multer from "multer";
 
-interface MulterRequest extends Request {
-  file?: Express.Multer.File;
-}
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY;
-
-// Configure multer for file uploads
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept audio files
-    if (file.mimetype.startsWith('audio/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only audio files are allowed'));
-    }
-  }
-});
+const OPENAI_API_KEY = "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";
+const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -169,12 +148,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Voice upload and creation endpoint
-  app.post("/api/create-voice", upload.single('voice_file'), async (req: MulterRequest, res) => {
+  app.post("/api/voice/create", async (req, res) => {
     try {
-      const file = req.file;
-      const name = req.body.name || "Voice Clone";
+      const { audioFile, name } = req.body;
       
-      if (!file) {
+      if (!audioFile) {
         return res.status(400).json({ error: "Audio file required" });
       }
 
@@ -182,24 +160,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "ElevenLabs API key not configured" });
       }
 
-      console.log("API Key first 10 chars:", ELEVEN_API_KEY?.substring(0, 10));
-      console.log("API Key length:", ELEVEN_API_KEY?.length);
-
-      // Validate file size (max 10MB for ElevenLabs)
-      if (file.size > 10 * 1024 * 1024) {
-        return res.status(400).json({ error: "Audio file too large. Maximum 10MB allowed." });
+      // Convert base64 to buffer
+      const base64Data = audioFile.includes(',') ? audioFile.split(',')[1] : audioFile;
+      const audioBuffer = Buffer.from(base64Data, 'base64');
+      
+      // Validate file size (max 6MB)
+      if (audioBuffer.length > 6 * 1024 * 1024) {
+        return res.status(400).json({ error: "Audio file too large. Maximum 6MB allowed." });
       }
 
       const formData = new FormData();
-      const blob = new Blob([file.buffer], { type: file.mimetype });
-      formData.append("files", blob, file.originalname);
-      formData.append("name", name);
-      formData.append("description", `Voice clone created for ${name}`);
+      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+      formData.append("files", blob, "voice.wav");
+      formData.append("name", name || "Voice Clone");
+      formData.append("description", `Voice clone created for ${name || "user"}`);
 
       const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
         method: "POST",
         headers: { 
-          "xi-api-key": ELEVEN_API_KEY!,
+          "xi-api-key": ELEVEN_API_KEY,
         },
         body: formData
       });
@@ -285,7 +264,7 @@ Respond naturally as this person would, incorporating these traits into your com
       const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
         method: "POST",
         headers: {
-          "xi-api-key": ELEVEN_API_KEY!,
+          "xi-api-key": ELEVEN_API_KEY,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -438,7 +417,7 @@ Respond naturally as this person would, incorporating these traits into your com
           const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
             method: "POST",
             headers: {
-              "xi-api-key": ELEVEN_API_KEY!,
+              "xi-api-key": ELEVEN_API_KEY,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -625,7 +604,7 @@ Respond naturally as this person would, incorporating these traits into your com
 
       // Get all voices from ElevenLabs
       const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
-        headers: new Headers({ "xi-api-key": ELEVEN_API_KEY! })
+        headers: { "xi-api-key": ELEVEN_API_KEY }
       });
 
       if (!voicesResponse.ok) {
@@ -643,7 +622,7 @@ Respond naturally as this person would, incorporating these traits into your com
         try {
           const deleteResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voice.voice_id}`, {
             method: "DELETE",
-            headers: new Headers({ "xi-api-key": ELEVEN_API_KEY! })
+            headers: { "xi-api-key": ELEVEN_API_KEY }
           });
 
           if (deleteResponse.ok) {
