@@ -15,6 +15,7 @@ import {
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react";
+import ImmersiveChat from "./immersive-chat";
 
 // TypeScript types
 type Role = "system" | "user" | "assistant";
