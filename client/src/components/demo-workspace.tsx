@@ -134,6 +134,24 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     }
   }, []);
 
+  // Load persisted message count
+  useEffect(() => {
+    const stored = localStorage.getItem(`messagesRemaining_${user.id}`);
+    if (stored !== null) {
+      const remaining = parseInt(stored, 10);
+      setMessagesRemaining(remaining);
+      if (remaining <= 0) setShowUpgradeOverlay(true);
+    }
+  }, [user.id]);
+
+  // Persist message count
+  useEffect(() => {
+    localStorage.setItem(
+      `messagesRemaining_${user.id}`,
+      messagesRemaining.toString(),
+    );
+  }, [messagesRemaining, user.id]);
+
   // Scroll to bottom of chat when messages change
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -1057,47 +1075,105 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
 
         {/* Upgrade Overlay */}
         {showUpgradeOverlay && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="premium-card rounded-xl p-8 w-full max-w-md text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-semibold mb-4 cosmic-glow">
-                Demo Limit Reached
-              </h3>
-              <p className="text-gray-300 mb-6">
-                You've used all 5 demo messages. Upgrade to continue unlimited
-                conversations with your AI companion.
-              </p>
-
-              <div className="space-y-3">
-                <button className="primary-button w-full py-3 rounded-lg font-medium text-white">
-                  <svg
-                    className="w-5 h-5 inline mr-2"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                  Upgrade to Premium
-                </button>
+          <div
+            id="upgrade-overlay"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl px-6">
+              <div className="plan-card bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col">
+                <h3 className="text-xl font-semibold mb-2">
+                  Starter – First Light
+                </h3>
+                <p className="text-3xl font-bold mb-4">
+                  $24<span className="text-base font-normal">/mo</span>
+                </p>
+                <ul className="text-sm space-y-1 flex-1">
+                  <li>20 min voice time</li>
+                  <li>1 M chat tokens</li>
+                  <li>5 photos</li>
+                </ul>
                 <button
-                  onClick={resetConversation}
-                  className="secondary-button w-full py-3 rounded-lg font-medium text-white"
+                  onClick={() =>
+                    window.open("https://buy.stripe.com/test_xxx", "_blank")
+                  }
+                  data-plan="starter"
+                  className="mt-6 primary-button w-full"
                 >
-                  Reset Demo
+                  Keep It Simple
+                </button>
+              </div>
+              <div className="plan-card bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col relative">
+                <span className="absolute -top-3 right-3 bg-yellow-400 text-black text-xs font-semibold px-2 py-1 rounded shadow">
+                  Most Loved
+                </span>
+                <h3 className="text-xl font-semibold mb-2">
+                  Pro – Forever Within
+                </h3>
+                <p className="text-3xl font-bold mb-4">
+                  $99<span className="text-base font-normal">/mo</span>
+                </p>
+                <ul className="text-sm space-y-1 flex-1">
+                  <li>40 min voice time</li>
+                  <li>5 M chat tokens</li>
+                  <li>20 photos</li>
+                  <li>Faster replies</li>
+                  <li>Fine-tuning</li>
+                </ul>
+                <button
+                  onClick={() =>
+                    window.open("https://buy.stripe.com/test_xxx", "_blank")
+                  }
+                  data-plan="pro"
+                  className="mt-6 primary-button w-full"
+                >
+                  Upgrade Now
+                </button>
+              </div>
+              <div className="plan-card bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col">
+                <h3 className="text-xl font-semibold mb-2">
+                  Elite – Legacy Vault
+                </h3>
+                <p className="text-3xl font-bold mb-4">
+                  $279<span className="text-base font-normal">/mo</span>
+                </p>
+                <ul className="text-sm space-y-1 flex-1">
+                  <li>Hours of conversation</li>
+                  <li>Unlimited memories</li>
+                  <li>Quarterly re-training</li>
+                  <li>Dedicated phone number</li>
+                </ul>
+                <button
+                  onClick={() =>
+                    window.open("https://buy.stripe.com/test_xxx", "_blank")
+                  }
+                  data-plan="elite"
+                  className="mt-6 primary-button w-full"
+                >
+                  Preserve Forever
                 </button>
               </div>
             </div>
           </div>
         )}
       </div>
+      <style>{`
+        .plan-card {
+          transition:
+            transform 0.3s,
+            box-shadow 0.3s;
+        }
+        .plan-card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.4);
+        }
+        .primary-button {
+          background: linear-gradient(90deg, #6366f1, #8b5cf6);
+          border-radius: 9999px;
+          padding: 0.75rem 1.5rem;
+          color: #fff;
+          font-weight: 600;
+        }
+      `}</style>
     </section>
   );
 }
