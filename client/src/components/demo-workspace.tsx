@@ -112,6 +112,8 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [messagesRemaining, setMessagesRemaining] = useState(5);
   const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
   const [currentReplica, setCurrentReplica] = useState<any>(null);
+  const [showImmersiveChat, setShowImmersiveChat] = useState(false);
+  const [selectedReplica, setSelectedReplica] = useState<any>(null);
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1155,6 +1157,20 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
               </div>
             </div>
           </div>
+        )}
+        {/* Immersive Chat Overlay */}
+        {showImmersiveChat && selectedReplica && (
+          <ImmersiveChat
+            replica={selectedReplica}
+            user={user}
+            initialMessages={chatMessages}
+            initialMessagesRemaining={messagesRemaining}
+            onBack={(updatedMessages, updatedRemaining) => {
+              setChatMessages(updatedMessages);
+              setMessagesRemaining(updatedRemaining);
+              setShowImmersiveChat(false);
+            }}
+          />
         )}
       </div>
       <style>{`
