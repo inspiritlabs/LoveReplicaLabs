@@ -114,6 +114,8 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [messagesRemaining, setMessagesRemaining] = useState(5);
   const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
   const [currentReplica, setCurrentReplica] = useState<any>(null);
+  const [hasExistingReplica, setHasExistingReplica] = useState(false);
+  const [isLoadingReplica, setIsLoadingReplica] = useState(true);
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -121,12 +123,82 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const isMounted = useRef(false);
+  const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityTime = useRef(Date.now());
 
   // Set isMounted to true when component mounts
   useEffect(() => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
+    };
+  }, []);
+
+  // Check for existing replicas on mount
+  useEffect(() => {
+    const checkExistingReplicas = async () => {
+      try {
+        const response = await fetch("/api/replicas");
+        if (response.ok) {
+          const replicas = await response.json();
+          if (replicas.length > 0) {
+            const replica = replicas[0];
+            setCurrentReplica(replica);
+            setHasExistingReplica(true);
+            setGenerationComplete(true);
+            setName(replica.name);
+            
+            // Load existing chat messages
+            const chatResponse = await fetch(`/api/replicas/${replica.id}/messages`);
+            if (chatResponse.ok) {
+              const messages = await chatResponse.json();
+              setChatMessages(messages);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error checking existing replicas:", error);
+      } finally {
+        setIsLoadingReplica(false);
+      }
+    };
+
+    checkExistingReplicas();
+  }, []);
+
+  // Activity tracking and inactivity redirect
+  useEffect(() => {
+    const updateActivity = () => {
+      lastActivityTime.current = Date.now();
+      
+      // Clear existing timer
+      if (inactivityTimer.current) {
+        clearTimeout(inactivityTimer.current);
+      }
+      
+      // Set new timer for 5 minutes
+      inactivityTimer.current = setTimeout(() => {
+        setShowUpgradeOverlay(true);
+      }, 5 * 60 * 1000); // 5 minutes
+    };
+
+    // Track user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    events.forEach(event => {
+      document.addEventListener(event, updateActivity, true);
+    });
+
+    // Initialize timer
+    updateActivity();
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, updateActivity, true);
+      });
+      if (inactivityTimer.current) {
+        clearTimeout(inactivityTimer.current);
+      }
     };
   }, []);
 
@@ -511,12 +583,28 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
     // Here you would send the feedback to your API
   };
 
+  // Show loading state while checking for existing replicas
+  if (isLoadingReplica) {
+    return (
+      <section id="demo-workspace" className="py-12 min-h-screen" ref={ref}>
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-white">Loading your replica...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="demo-workspace" className="py-12 min-h-screen" ref={ref}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold cosmic-glow">
-            Create Your Replica
+            {hasExistingReplica ? `Chat with ${name}` : "Create Your Replica"}
           </h1>
           <button
             onClick={onSignOut}
@@ -540,7 +628,88 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           />
 
           <div className="relative premium-card rounded-xl p-8">
-            {!isGenerating && !generationComplete && (
+            {/* Show chat interface if user has existing replica */}
+            {hasExistingReplica && generationComplete && (
+              <div className="relative h-[600px] flex flex-col">
+                {/* Messages */}
+                <div
+                  ref={chatContainerRef}
+                  className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10"
+                >
+                  {chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${
+                        msg.role === "user" ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                          msg.role === "user"
+                            ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white"
+                            : "bg-white/10 backdrop-blur-sm text-white border border-white/20"
+                        }`}
+                      >
+                        <p className="text-sm">{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {isProcessing && (
+                    <div className="flex justify-start">
+                      <div className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-4 py-2 rounded-2xl">
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                          <span className="text-sm">Thinking...</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat Input */}
+                <div className="p-6">
+                  <div className="bg-black/20 backdrop-blur-xl rounded-3xl border border-white/10 p-4">
+                    <div className="flex items-end gap-4">
+                      <div className="flex-1">
+                        <textarea
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              sendMessage();
+                            }
+                          }}
+                          placeholder="Type your message..."
+                          className="w-full bg-transparent text-white placeholder-white/50 border-none outline-none resize-none min-h-[24px] max-h-32"
+                          rows={1}
+                          disabled={messagesRemaining <= 0}
+                        />
+                      </div>
+                      <button
+                        onClick={sendMessage}
+                        disabled={
+                          !message.trim() ||
+                          isProcessing ||
+                          messagesRemaining <= 0
+                        }
+                        className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full text-white hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-center mt-4">
+                    <span className="text-sm text-white/70">
+                      {messagesRemaining} messages remaining
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Show creation form only if user doesn't have a replica */}
+            {!hasExistingReplica && !isGenerating && !generationComplete && (
               <div className="max-w-4xl mx-auto space-y-8">
                 {/* Configuration Panel */}
                 <div className="space-y-6">
