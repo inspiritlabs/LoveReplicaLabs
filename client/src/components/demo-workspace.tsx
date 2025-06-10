@@ -1250,7 +1250,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
             id="upgrade-overlay"
             className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50"
           >
-            <div className="space-y-8 text-center mb-8 absolute top-10 inset-x-0 px-6">
+            <div className="space-y-4 text-center mb-8 absolute top-10 inset-x-0 px-6">
               <p className="text-lg text-white font-semibold">
                 You’ve used all 5 demo messages. Upgrade to continue.
               </p>
