@@ -8,7 +8,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   accessCode: text("access_code"),
-  credits: integer("credits").default(10),
+  credits: integer("credits").default(5),
   messagesRemaining: integer("messages_remaining").default(5),
   isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
