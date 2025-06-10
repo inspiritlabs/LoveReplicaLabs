@@ -141,6 +141,18 @@ export default function Home() {
               : "Already have an account? Sign in"}
           </button>
         </div>
+
+        <div className="text-center mt-8 pt-6 border-t border-white/10">
+          <p className="text-sm text-gray-400">
+            Need help? Contact us at{" "}
+            <a 
+              href="mailto:inspiritlabs@gmail.com" 
+              className="text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              inspiritlabs@gmail.com
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );
