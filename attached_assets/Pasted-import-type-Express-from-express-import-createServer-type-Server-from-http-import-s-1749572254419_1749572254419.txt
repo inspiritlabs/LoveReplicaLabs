@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertUserSchema, insertReplicaSchema, insertChatMessageSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "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";
+const OPENAI_API_KEY = "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";
 const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -235,11 +235,6 @@ Personality traits (1-10 scale):
 
 Respond naturally as this person would, incorporating these traits into your communication style.`;
 
-      // Validate OpenAI API key
-      if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
-        return res.status(500).json({ error: "OpenAI API key not configured" });
-      }
-
       // Call OpenAI API
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -259,9 +254,7 @@ Respond naturally as this person would, incorporating these traits into your com
       });
 
       if (!openaiResponse.ok) {
-        const errorText = await openaiResponse.text();
-        console.error("OpenAI API error:", openaiResponse.status, errorText);
-        throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorText}`);
+        throw new Error("OpenAI API error");
       }
 
       const openaiData = await openaiResponse.json();
@@ -382,14 +375,6 @@ Respond naturally as this person would, incorporating these traits into your com
 
       console.log("Sending request to OpenAI with system prompt length:", systemPrompt.length);
 
-      // Validate OpenAI API key
-      if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
-        console.error("OpenAI API key not configured");
-        return res.status(500).json({ error: "OpenAI API key not configured" });
-      }
-
-      console.log("Calling OpenAI API with key:", OPENAI_API_KEY.substring(0, 20) + "...");
-
       // Call OpenAI API
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -410,25 +395,11 @@ Respond naturally as this person would, incorporating these traits into your com
 
       const openaiResponseText = await openaiResponse.text();
       console.log("OpenAI response status:", openaiResponse.status);
-      console.log("OpenAI response headers:", Object.fromEntries(openaiResponse.headers.entries()));
-      console.log("OpenAI response body:", openaiResponseText.substring(0, 500));
+      console.log("OpenAI response:", openaiResponseText.substring(0, 200));
 
       if (!openaiResponse.ok) {
-        console.error("OpenAI API error details:", {
-          status: openaiResponse.status,
-          statusText: openaiResponse.statusText,
-          body: openaiResponseText
-        });
-        
-        let errorMessage = "OpenAI API error";
-        try {
-          const errorData = JSON.parse(openaiResponseText);
-          errorMessage = errorData.error?.message || errorData.message || errorMessage;
-        } catch (e) {
-          errorMessage = openaiResponseText || errorMessage;
-        }
-        
-        return res.status(500).json({ error: `OpenAI API failed: ${errorMessage}` });
+        console.error("OpenAI API error:", openaiResponse.status, openaiResponseText);
+        throw new Error(`OpenAI API error: ${openaiResponse.status}`);
       }
 
       const openaiData = JSON.parse(openaiResponseText);
