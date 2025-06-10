@@ -617,6 +617,29 @@ Respond naturally as this person would, incorporating these traits into your com
     }
   });
 
+  // Get replica messages
+  app.get("/api/replicas/:id/messages", async (req, res) => {
+    try {
+      const replicaId = parseInt(req.params.id);
+      const messages = await storage.getReplicaMessages(replicaId);
+      
+      // Format messages for frontend
+      const formattedMessages = messages.map(msg => ({
+        id: msg.id.toString(),
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+        audioUrl: msg.audioUrl,
+        feedback: msg.feedback,
+        feedbackText: msg.feedbackText
+      }));
+      
+      res.json(formattedMessages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
   // Admin routes
   app.get("/api/admin/users", async (req, res) => {
     try {
