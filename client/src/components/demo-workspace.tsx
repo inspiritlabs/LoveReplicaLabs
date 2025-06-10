@@ -606,12 +606,20 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           <h1 className="text-3xl font-bold cosmic-glow">
             {hasExistingReplica ? `Chat with ${name}` : "Create Your Replica"}
           </h1>
-          <button
-            onClick={onSignOut}
-            className="secondary-button px-4 py-2 rounded-lg text-white"
-          >
-            Sign Out
-          </button>
+          <div className="flex items-center gap-4">
+            <a 
+              href="mailto:inspiritlabs@gmail.com" 
+              className="text-sm text-gray-400 hover:text-purple-400 transition-colors"
+            >
+              Contact: inspiritlabs@gmail.com
+            </a>
+            <button
+              onClick={onSignOut}
+              className="secondary-button px-4 py-2 rounded-lg text-white"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {/* Premium colorful box around the entire demo */}
