@@ -1254,6 +1254,15 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
               <p className="text-lg text-white font-semibold">
                 You’ve used all 5 demo messages. Upgrade to continue.
               </p>
+              <p className="text-sm text-gray-400">
+                For payment assistance, contact{" "}
+                <a 
+                  href="mailto:inspiritlabs@gmail.com" 
+                  className="text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  inspiritlabs@gmail.com
+                </a>
+              </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl px-6">
               <div className="plan-card group relative p-px rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500">
