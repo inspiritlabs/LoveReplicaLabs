@@ -11,9 +11,8 @@ if (!OPENAI_API_KEY) {
   throw new Error("OPENAI_API_KEY environment variable is required");
 }
 
-if (!ELEVEN_API_KEY) {
-  throw new Error("ELEVEN_API_KEY environment variable is required");
-}
+// ElevenLabs API key will be checked at runtime for voice features
+console.log("ElevenLabs API key status:", ELEVEN_API_KEY ? "configured" : "not configured");
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -276,10 +275,14 @@ Respond naturally as this person would, incorporating these traits into your com
       const aiMessage = openaiData.choices[0].message.content;
 
       // Generate audio with ElevenLabs using the created voice
+      if (!ELEVEN_API_KEY) {
+        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+      }
+
       const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
         method: "POST",
         headers: {
-          "xi-api-key": ELEVEN_API_KEY,
+          "xi-api-key": ELEVEN_API_KEY!,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -447,14 +450,14 @@ Respond naturally as this person would, incorporating these traits into your com
       let audioUrl = null;
 
       // Generate audio with ElevenLabs if voice ID exists
-      if (currentReplica.voiceId) {
+      if (currentReplica.voiceId && ELEVEN_API_KEY) {
         try {
           console.log("Generating voice with ElevenLabs for voice ID:", currentReplica.voiceId);
           
           const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
             method: "POST",
             headers: {
-              "xi-api-key": ELEVEN_API_KEY,
+              "xi-api-key": ELEVEN_API_KEY!,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -640,6 +643,10 @@ Respond naturally as this person would, incorporating these traits into your com
       }
 
       // Get all voices from ElevenLabs
+      if (!ELEVEN_API_KEY) {
+        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+      }
+
       const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
         headers: { "xi-api-key": ELEVEN_API_KEY }
       });
