@@ -648,7 +648,7 @@ Respond naturally as this person would, incorporating these traits into your com
       }
 
       const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
-        headers: { "xi-api-key": ELEVEN_API_KEY }
+        headers: { "xi-api-key": ELEVEN_API_KEY! }
       });
 
       if (!voicesResponse.ok) {
@@ -666,7 +666,7 @@ Respond naturally as this person would, incorporating these traits into your com
         try {
           const deleteResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voice.voice_id}`, {
             method: "DELETE",
-            headers: { "xi-api-key": ELEVEN_API_KEY }
+            headers: { "xi-api-key": ELEVEN_API_KEY! }
           });
 
           if (deleteResponse.ok) {
