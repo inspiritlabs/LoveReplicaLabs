@@ -1272,12 +1272,12 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                   </ul>
                   <button
                     onClick={() =>
-                      window.open("https://buy.stripe.com/test_xxx", "_blank")
+                      window.open("mailto:inspiritlabs@gmail.com?subject=Starter Plan Payment Request", "_blank")
                     }
                     data-plan="starter"
                     className="mt-6 primary-button w-full"
                   >
-                    Keep It Simple
+                    Contact for Payment
                   </button>
                 </div>
               </div>
@@ -1300,12 +1300,12 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                   </ul>
                   <button
                     onClick={() =>
-                      window.open("https://buy.stripe.com/test_xxx", "_blank")
+                      window.open("mailto:inspiritlabs@gmail.com?subject=Pro Plan Payment Request", "_blank")
                     }
                     data-plan="pro"
                     className="mt-6 primary-button w-full"
                   >
-                    Upgrade Now
+                    Contact for Payment
                   </button>
                 </div>
               </div>
@@ -1325,12 +1325,12 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                   </ul>
                   <button
                     onClick={() =>
-                      window.open("https://buy.stripe.com/test_xxx", "_blank")
+                      window.open("mailto:inspiritlabs@gmail.com?subject=Elite Plan Payment Request", "_blank")
                     }
                     data-plan="elite"
                     className="mt-6 primary-button w-full"
                   >
-                    Preserve Forever
+                    Contact for Payment
                   </button>
                 </div>
               </div>
