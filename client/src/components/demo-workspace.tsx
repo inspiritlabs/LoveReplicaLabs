@@ -14,8 +14,10 @@ import {
   X,
   ThumbsUp,
   ThumbsDown,
+  Heart,
+  Infinity,
+  Crown,
 } from "lucide-react";
-import ImmersiveChat from "./immersive-chat";
 
 // TypeScript types
 type Role = "system" | "user" | "assistant";
@@ -112,8 +114,6 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
   const [messagesRemaining, setMessagesRemaining] = useState(5);
   const [showUpgradeOverlay, setShowUpgradeOverlay] = useState(false);
   const [currentReplica, setCurrentReplica] = useState<any>(null);
-  const [showImmersiveChat, setShowImmersiveChat] = useState(false);
-  const [selectedReplica, setSelectedReplica] = useState<any>(null);
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -986,17 +986,11 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                             </div>
                           )}
                           <div
-                            className={`relative rounded-2xl px-5 py-3 transition-all duration-300 hover:scale-[1.02] ${
+                            className={`relative rounded-2xl px-5 py-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-inner ${
                               message.role === "user"
-                                ? "bg-white/5 backdrop-blur-md ml-auto"
-                                : "bg-black/10 backdrop-blur-md"
+                                ? "bg-gradient-to-br from-blue-500 to-purple-500 backdrop-blur-md ml-auto"
+                                : "bg-gradient-to-br from-purple-500 to-pink-500 backdrop-blur-md"
                             }`}
-                            style={{
-                              boxShadow:
-                                message.role === "user"
-                                  ? "0 8px 32px rgba(255, 255, 255, 0.1)"
-                                  : "0 8px 32px rgba(0, 0, 0, 0.2)",
-                            }}
                           >
                             <p className="text-white leading-relaxed font-medium">
                               {message.content}
@@ -1013,16 +1007,13 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
                     {isProcessing && (
                       <div className="flex justify-start">
                         <div className="flex flex-col space-y-2 max-w-[70%]">
-                          <div className="bg-black/10 backdrop-blur-md rounded-2xl px-5 py-3">
-                            <div className="flex gap-1">
-                              {[...Array(5)].map((_, i) => (
-                                <div
+                          <div className="bg-gradient-to-br from-purple-500 to-pink-500 backdrop-blur-md rounded-2xl px-5 py-3">
+                            <div className="flex gap-2">
+                              {[...Array(3)].map((_, i) => (
+                                <span
                                   key={i}
-                                  className="w-1 bg-white/60 rounded-full animate-pulse"
-                                  style={{
-                                    height: `${Math.random() * 20 + 10}px`,
-                                    animationDelay: `${i * 0.1}s`,
-                                  }}
+                                  className="w-2 h-2 bg-white/80 rounded-full animate-bounce"
+                                  style={{ animationDelay: `${i * 0.2}s` }}
                                 />
                               ))}
                             </div>
@@ -1082,106 +1073,103 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
             id="upgrade-overlay"
             className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50"
           >
+            <div className="space-y-8 text-center mb-8 absolute top-10 inset-x-0 px-6">
+              <p className="text-lg text-white font-semibold">
+                You’ve used all 5 demo messages. Upgrade to continue.
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl px-6">
-              <div className="plan-card bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col">
-                <h3 className="text-xl font-semibold mb-2">
-                  Starter – First Light
-                </h3>
-                <p className="text-3xl font-bold mb-4">
-                  $24<span className="text-base font-normal">/mo</span>
-                </p>
-                <ul className="text-sm space-y-1 flex-1">
-                  <li>20 min voice time</li>
-                  <li>1 M chat tokens</li>
-                  <li>5 photos</li>
-                </ul>
-                <button
-                  onClick={() =>
-                    window.open("https://buy.stripe.com/test_xxx", "_blank")
-                  }
-                  data-plan="starter"
-                  className="mt-6 primary-button w-full"
-                >
-                  Keep It Simple
-                </button>
+              <div className="plan-card group relative p-px rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500">
+                <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 flex flex-col h-full">
+                  <Heart className="w-10 h-10 text-pink-400 mb-4 mx-auto" />
+                  <h3 className="text-xl font-semibold mb-2">
+                    Starter – Love in Small Doses
+                  </h3>
+                  <p className="text-3xl font-bold mb-4">
+                    $24<span className="text-base font-normal">/mo</span>
+                  </p>
+                  <ul className="text-sm space-y-1 flex-1">
+                    <li className="font-bold">20 voice minutes</li>
+                    <li className="font-bold">Standard model</li>
+                    <li className="font-bold">5 photos</li>
+                  </ul>
+                  <button
+                    onClick={() =>
+                      window.open("https://buy.stripe.com/test_xxx", "_blank")
+                    }
+                    data-plan="starter"
+                    className="mt-6 primary-button w-full"
+                  >
+                    Keep It Simple
+                  </button>
+                </div>
               </div>
-              <div className="plan-card bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col relative">
-                <span className="absolute -top-3 right-3 bg-yellow-400 text-black text-xs font-semibold px-2 py-1 rounded shadow">
-                  Most Loved
-                </span>
-                <h3 className="text-xl font-semibold mb-2">
-                  Pro – Forever Within
-                </h3>
-                <p className="text-3xl font-bold mb-4">
-                  $99<span className="text-base font-normal">/mo</span>
-                </p>
-                <ul className="text-sm space-y-1 flex-1">
-                  <li>40 min voice time</li>
-                  <li>5 M chat tokens</li>
-                  <li>20 photos</li>
-                  <li>Faster replies</li>
-                  <li>Fine-tuning</li>
-                </ul>
-                <button
-                  onClick={() =>
-                    window.open("https://buy.stripe.com/test_xxx", "_blank")
-                  }
-                  data-plan="pro"
-                  className="mt-6 primary-button w-full"
-                >
-                  Upgrade Now
-                </button>
+              <div className="plan-card group relative p-px rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500">
+                <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 flex flex-col h-full relative">
+                  <span className="absolute -top-3 right-3 bg-yellow-400 text-black text-xs font-semibold px-2 py-1 rounded shadow">
+                    Most Loved
+                  </span>
+                  <Infinity className="w-10 h-10 text-purple-300 mb-4 mx-auto" />
+                  <h3 className="text-xl font-semibold mb-2">
+                    Pro – Daily Presence, Zero Limits
+                  </h3>
+                  <p className="text-3xl font-bold mb-4">
+                    $99<span className="text-base font-normal">/mo</span>
+                  </p>
+                  <ul className="text-sm space-y-1 flex-1">
+                    <li className="font-bold">60 voice minutes</li>
+                    <li className="font-bold">Faster model</li>
+                    <li className="font-bold">20 photos</li>
+                  </ul>
+                  <button
+                    onClick={() =>
+                      window.open("https://buy.stripe.com/test_xxx", "_blank")
+                    }
+                    data-plan="pro"
+                    className="mt-6 primary-button w-full"
+                  >
+                    Upgrade Now
+                  </button>
+                </div>
               </div>
-              <div className="plan-card bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col">
-                <h3 className="text-xl font-semibold mb-2">
-                  Elite – Legacy Vault
-                </h3>
-                <p className="text-3xl font-bold mb-4">
-                  $279<span className="text-base font-normal">/mo</span>
-                </p>
-                <ul className="text-sm space-y-1 flex-1">
-                  <li>Hours of conversation</li>
-                  <li>Unlimited memories</li>
-                  <li>Quarterly re-training</li>
-                  <li>Dedicated phone number</li>
-                </ul>
-                <button
-                  onClick={() =>
-                    window.open("https://buy.stripe.com/test_xxx", "_blank")
-                  }
-                  data-plan="elite"
-                  className="mt-6 primary-button w-full"
-                >
-                  Preserve Forever
-                </button>
+              <div className="plan-card group relative p-px rounded-2xl bg-gradient-to-br from-pink-500 to-yellow-500">
+                <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 flex flex-col h-full">
+                  <Crown className="w-10 h-10 text-yellow-300 mb-4 mx-auto" />
+                  <h3 className="text-xl font-semibold mb-2">
+                    Elite – Legacy that Never Sleeps
+                  </h3>
+                  <p className="text-3xl font-bold mb-4">
+                    $279<span className="text-base font-normal">/mo</span>
+                  </p>
+                  <ul className="text-sm space-y-1 flex-1">
+                    <li className="font-bold">200 voice minutes</li>
+                    <li className="font-bold">Fastest model</li>
+                    <li className="font-bold">Unlimited photos</li>
+                  </ul>
+                  <button
+                    onClick={() =>
+                      window.open("https://buy.stripe.com/test_xxx", "_blank")
+                    }
+                    data-plan="elite"
+                    className="mt-6 primary-button w-full"
+                  >
+                    Preserve Forever
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
-        {/* Immersive Chat Overlay */}
-        {showImmersiveChat && selectedReplica && (
-          <ImmersiveChat
-            replica={selectedReplica}
-            user={user}
-            initialMessages={chatMessages}
-            initialMessagesRemaining={messagesRemaining}
-            onBack={(updatedMessages, updatedRemaining) => {
-              setChatMessages(updatedMessages);
-              setMessagesRemaining(updatedRemaining);
-              setShowImmersiveChat(false);
-            }}
-          />
-        )}
       </div>
-      <style>{`
+      <style jsx>{`
         .plan-card {
           transition:
             transform 0.3s,
             box-shadow 0.3s;
         }
         .plan-card:hover {
-          transform: translateY(-6px);
-          box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.4);
+          transform: scale(1.05);
+          box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.5);
         }
         .primary-button {
           background: linear-gradient(90deg, #6366f1, #8b5cf6);
