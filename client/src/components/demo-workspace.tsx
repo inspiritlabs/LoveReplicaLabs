@@ -1330,7 +1330,7 @@ export default function DemoWorkspace({ user, onSignOut }: DemoWorkspaceProps) {
           </div>
         )}
       </div>
-      <style jsx>{`
+      <style>{`
         .plan-card {
           transition:
             transform 0.3s,
