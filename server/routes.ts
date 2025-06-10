@@ -4,8 +4,16 @@ import { storage } from "./storage";
 import { insertUserSchema, insertReplicaSchema, insertChatMessageSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "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";
-const ELEVEN_API_KEY = "sk_f72f4feb31e66e38d86804d2a56846744cbc89d8ecfa552d";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ELEVEN_API_KEY = process.env.ELEVEN_API_KEY;
+
+if (!OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY environment variable is required");
+}
+
+if (!ELEVEN_API_KEY) {
+  throw new Error("ELEVEN_API_KEY environment variable is required");
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
