@@ -1,7 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertReplicaSchema, insertChatMessageSchema } from "@shared/schema";
+import {
+  insertUserSchema,
+  insertReplicaSchema,
+  insertChatMessageSchema,
+} from "@shared/schema";
 import bcrypt from "bcrypt";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -12,7 +16,10 @@ if (!OPENAI_API_KEY) {
 }
 
 // ElevenLabs API key will be checked at runtime for voice features
-console.log("ElevenLabs API key status:", ELEVEN_API_KEY ? "configured" : "not configured");
+console.log(
+  "ElevenLabs API key status:",
+  ELEVEN_API_KEY ? "configured" : "not configured",
+);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -22,7 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!code) {
         return res.status(400).json({ error: "Access code is required" });
       }
-      
+
       const isValid = await storage.validateAccessCode(code);
       if (isValid) {
         res.json({ valid: true });
@@ -37,17 +44,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Validate access code
       if (!userData.accessCode) {
         return res.status(400).json({ error: "Access code is required" });
       }
-      
+
       const isValidCode = await storage.validateAccessCode(userData.accessCode);
       if (!isValidCode) {
-        return res.status(400).json({ error: "Invalid or already used access code" });
+        return res
+          .status(400)
+          .json({ error: "Invalid or already used access code" });
       }
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
@@ -56,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Hash password
       const hashedPassword = await bcrypt.hash(userData.password, 10);
-      
+
       // Create user
       const user = await storage.createUser({
         ...userData,
@@ -65,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Mark access code as used
       await storage.markAccessCodeUsed(userData.accessCode!, user.id);
-      
+
       // Don't return password
       const { password: _, ...userWithoutPassword } = user;
       res.json({ user: userWithoutPassword });
@@ -77,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = insertUserSchema.parse(req.body);
-      
+
       // Find user
       const user = await storage.getUserByEmail(email);
       if (!user) {
@@ -158,36 +167,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/voice/create", async (req, res) => {
     try {
       const { audioFile, name } = req.body;
-      
+
       if (!audioFile) {
         return res.status(400).json({ error: "Audio file required" });
       }
 
       if (!ELEVEN_API_KEY) {
-        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+        return res
+          .status(500)
+          .json({ error: "ElevenLabs API key not configured" });
       }
 
       // Convert base64 to buffer
-      const base64Data = audioFile.includes(',') ? audioFile.split(',')[1] : audioFile;
-      const audioBuffer = Buffer.from(base64Data, 'base64');
-      
+      const base64Data = audioFile.includes(",")
+        ? audioFile.split(",")[1]
+        : audioFile;
+      const audioBuffer = Buffer.from(base64Data, "base64");
+
       // Validate file size (max 6MB)
       if (audioBuffer.length > 6 * 1024 * 1024) {
-        return res.status(400).json({ error: "Audio file too large. Maximum 6MB allowed." });
+        return res
+          .status(400)
+          .json({ error: "Audio file too large. Maximum 6MB allowed." });
       }
 
       const formData = new FormData();
-      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+      const blob = new Blob([audioBuffer], { type: "audio/wav" });
       formData.append("files", blob, "voice.wav");
       formData.append("name", name || "Voice Clone");
-      formData.append("description", `Voice clone created for ${name || "user"}`);
+      formData.append(
+        "description",
+        `Voice clone created for ${name || "user"}`,
+      );
 
       const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
         method: "POST",
-        headers: { 
+        headers: {
           "xi-api-key": ELEVEN_API_KEY,
         },
-        body: formData
+        body: formData,
       });
 
       const responseText = await response.text();
@@ -197,7 +215,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let errorMessage = "Voice creation failed";
         try {
           const errorData = JSON.parse(responseText);
-          errorMessage = errorData.detail?.message || errorData.message || errorMessage;
+          errorMessage =
+            errorData.detail?.message || errorData.message || errorMessage;
         } catch (e) {
           errorMessage = responseText || errorMessage;
         }
@@ -207,17 +226,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = JSON.parse(responseText);
       console.log("Voice created successfully:", data.voice_id);
       res.json({ voiceId: data.voice_id });
-
     } catch (error) {
       console.error("Voice creation error:", error);
-      res.status(500).json({ error: (error as Error).message || "Failed to create voice" });
+      res
+        .status(500)
+        .json({ error: (error as Error).message || "Failed to create voice" });
     }
   });
 
   // AI Chat endpoint with OpenAI and ElevenLabs
   app.post("/api/chat/ai-response", async (req, res) => {
     try {
-      const { message, replicaId, personalityTraits, personalityDescription, voiceId, userId } = req.body;
+      const {
+        message,
+        replicaId,
+        personalityTraits,
+        personalityDescription,
+        voiceId,
+        userId,
+      } = req.body;
 
       // Check user message limit
       const user = await storage.getUser(userId);
@@ -248,27 +275,32 @@ Respond naturally as this person would, incorporating these traits into your com
       }
 
       // Call OpenAI API
-      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
+      const openaiResponse = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: message },
+            ],
+            max_tokens: 150,
+            temperature: 0.8,
+          }),
         },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: message }
-          ],
-          max_tokens: 150,
-          temperature: 0.8,
-        }),
-      });
+      );
 
       if (!openaiResponse.ok) {
         const errorText = await openaiResponse.text();
         console.error("OpenAI API error:", openaiResponse.status, errorText);
-        throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorText}`);
+        throw new Error(
+          `OpenAI API error: ${openaiResponse.status} - ${errorText}`,
+        );
       }
 
       const openaiData = await openaiResponse.json();
@@ -276,31 +308,36 @@ Respond naturally as this person would, incorporating these traits into your com
 
       // Generate audio with ElevenLabs using the created voice
       if (!ELEVEN_API_KEY) {
-        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+        return res
+          .status(500)
+          .json({ error: "ElevenLabs API key not configured" });
       }
 
-      const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
-        method: "POST",
-        headers: {
-          "xi-api-key": ELEVEN_API_KEY!,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: aiMessage,
-          model_id: "eleven_monolingual_v1",
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.5,
+      const elevenResponse = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+        {
+          method: "POST",
+          headers: {
+            "xi-api-key": ELEVEN_API_KEY!,
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({
+            text: aiMessage,
+            model_id: "eleven_monolingual_v1",
+            voice_settings: {
+              stability: 0.5,
+              similarity_boost: 0.5,
+            },
+          }),
+        },
+      );
 
       if (!elevenResponse.ok) {
         throw new Error("ElevenLabs API error");
       }
 
       const audioBuffer = await elevenResponse.arrayBuffer();
-      const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+      const audioBase64 = Buffer.from(audioBuffer).toString("base64");
 
       // Save both messages to database
       await storage.createChatMessage({
@@ -314,7 +351,7 @@ Respond naturally as this person would, incorporating these traits into your com
 
       const assistantMessage = await storage.createChatMessage({
         replicaId: parseInt(replicaId),
-        role: "assistant", 
+        role: "assistant",
         content: aiMessage,
         audioUrl: `data:audio/mpeg;base64,${audioBase64}`,
         feedback: null,
@@ -330,7 +367,6 @@ Respond naturally as this person would, incorporating these traits into your com
         messageId: assistantMessage.id,
         messagesRemaining: updatedUser?.messagesRemaining || 0,
       });
-
     } catch (error) {
       console.error("AI response error:", error);
       res.status(500).json({ error: "Failed to generate AI response" });
@@ -342,12 +378,17 @@ Respond naturally as this person would, incorporating these traits into your com
     try {
       const replicaId = parseInt(req.params.id);
       const { content } = req.body;
-      
+
       if (!content) {
         return res.status(400).json({ error: "Message content required" });
       }
 
-      console.log("Processing chat request for replica:", replicaId, "Message:", content);
+      console.log(
+        "Processing chat request for replica:",
+        replicaId,
+        "Message:",
+        content,
+      );
 
       // Get replica data - simplified for now
       const allUsers = await storage.getAllUsers();
@@ -356,14 +397,14 @@ Respond naturally as this person would, incorporating these traits into your com
 
       for (const user of allUsers) {
         const userReplicas = await storage.getUserReplicas(user.id);
-        const found = userReplicas.find(r => r.id === replicaId);
+        const found = userReplicas.find((r) => r.id === replicaId);
         if (found) {
           currentReplica = found;
           replicaUser = user;
           break;
         }
       }
-      
+
       if (!currentReplica || !replicaUser) {
         return res.status(404).json({ error: "Replica not found" });
       }
@@ -374,8 +415,13 @@ Respond naturally as this person would, incorporating these traits into your com
       }
 
       // Build system prompt with personality traits
-      const personalityTraits = currentReplica.personalityTraits as any || {
-        warmth: 5, humor: 5, thoughtfulness: 5, empathy: 5, assertiveness: 5, energy: 5
+      const personalityTraits = (currentReplica.personalityTraits as any) || {
+        warmth: 5,
+        humor: 5,
+        thoughtfulness: 5,
+        empathy: 5,
+        assertiveness: 5,
+        energy: 5,
       };
 
       const systemPrompt = `You are a digital replica with the following personality:
@@ -391,7 +437,10 @@ Personality traits (1-10 scale):
 
 Respond naturally as this person would, incorporating these traits into your communication style. Keep responses conversational and under 100 words.`;
 
-      console.log("Sending request to OpenAI with system prompt length:", systemPrompt.length);
+      console.log(
+        "Sending request to OpenAI with system prompt length:",
+        systemPrompt.length,
+      );
 
       // Validate OpenAI API key
       if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
@@ -399,52 +448,67 @@ Respond naturally as this person would, incorporating these traits into your com
         return res.status(500).json({ error: "OpenAI API key not configured" });
       }
 
-      console.log("Calling OpenAI API with key:", OPENAI_API_KEY.substring(0, 20) + "...");
+      console.log(
+        "Calling OpenAI API with key:",
+        OPENAI_API_KEY.substring(0, 20) + "...",
+      );
 
       // Call OpenAI API
-      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
+      const openaiResponse = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: content },
+            ],
+            max_tokens: 150,
+            temperature: 0.8,
+          }),
         },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: content }
-          ],
-          max_tokens: 150,
-          temperature: 0.8,
-        }),
-      });
+      );
 
       const openaiResponseText = await openaiResponse.text();
       console.log("OpenAI response status:", openaiResponse.status);
-      console.log("OpenAI response headers:", Object.fromEntries(openaiResponse.headers.entries()));
-      console.log("OpenAI response body:", openaiResponseText.substring(0, 500));
+      console.log(
+        "OpenAI response headers:",
+        Object.fromEntries(openaiResponse.headers.entries()),
+      );
+      console.log(
+        "OpenAI response body:",
+        openaiResponseText.substring(0, 500),
+      );
 
       if (!openaiResponse.ok) {
         console.error("OpenAI API error details:", {
           status: openaiResponse.status,
           statusText: openaiResponse.statusText,
-          body: openaiResponseText
+          body: openaiResponseText,
         });
-        
+
         let errorMessage = "OpenAI API error";
         try {
           const errorData = JSON.parse(openaiResponseText);
-          errorMessage = errorData.error?.message || errorData.message || errorMessage;
+          errorMessage =
+            errorData.error?.message || errorData.message || errorMessage;
         } catch (e) {
           errorMessage = openaiResponseText || errorMessage;
         }
-        
-        return res.status(500).json({ error: `OpenAI API failed: ${errorMessage}` });
+
+        return res
+          .status(500)
+          .json({ error: `OpenAI API failed: ${errorMessage}` });
       }
 
       const openaiData = JSON.parse(openaiResponseText);
       const aiMessage = openaiData.choices[0].message.content;
-      
+
       console.log("AI generated message:", aiMessage);
 
       let audioUrl = null;
@@ -452,40 +516,56 @@ Respond naturally as this person would, incorporating these traits into your com
       // Generate audio with ElevenLabs if voice ID exists
       if (currentReplica.voiceId && ELEVEN_API_KEY) {
         try {
-          console.log("Generating voice with ElevenLabs for voice ID:", currentReplica.voiceId);
-          
-          const elevenResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`, {
-            method: "POST",
-            headers: {
-              "xi-api-key": ELEVEN_API_KEY!,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              text: aiMessage,
-              model_id: "eleven_monolingual_v1",
-              voice_settings: {
-                stability: 0.5,
-                similarity_boost: 0.5,
+          console.log(
+            "Generating voice with ElevenLabs for voice ID:",
+            currentReplica.voiceId,
+          );
+
+          const elevenResponse = await fetch(
+            `https://api.elevenlabs.io/v1/text-to-speech/${currentReplica.voiceId}/stream`,
+            {
+              method: "POST",
+              headers: {
+                "xi-api-key": ELEVEN_API_KEY!,
+                "Content-Type": "application/json",
               },
-            }),
-          });
+              body: JSON.stringify({
+                text: aiMessage,
+                model_id: "eleven_monolingual_v1",
+                voice_settings: {
+                  stability: 0.5,
+                  similarity_boost: 0.5,
+                },
+              }),
+            },
+          );
 
           console.log("ElevenLabs TTS response status:", elevenResponse.status);
 
           if (elevenResponse.ok) {
             const audioBuffer = await elevenResponse.arrayBuffer();
-            const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+            const audioBase64 = Buffer.from(audioBuffer).toString("base64");
             audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
-            console.log("Voice generation successful, audio size:", audioBuffer.byteLength, "bytes");
+            console.log(
+              "Voice generation successful, audio size:",
+              audioBuffer.byteLength,
+              "bytes",
+            );
           } else {
             const errorText = await elevenResponse.text();
-            console.error("ElevenLabs TTS error:", elevenResponse.status, errorText);
+            console.error(
+              "ElevenLabs TTS error:",
+              elevenResponse.status,
+              errorText,
+            );
           }
         } catch (voiceError) {
           console.error("Voice generation failed:", voiceError);
         }
       } else {
-        console.log("No voice ID available for replica, skipping voice generation");
+        console.log(
+          "No voice ID available for replica, skipping voice generation",
+        );
       }
 
       // Save messages to database
@@ -500,7 +580,7 @@ Respond naturally as this person would, incorporating these traits into your com
 
       const assistantMessage = await storage.createChatMessage({
         replicaId: replicaId,
-        role: "assistant", 
+        role: "assistant",
         content: aiMessage,
         audioUrl: audioUrl,
         feedback: null,
@@ -511,7 +591,10 @@ Respond naturally as this person would, incorporating these traits into your com
       const newCredits = (replicaUser.credits || 0) - 1;
       await storage.updateUserCredits(replicaUser.id, newCredits);
 
-      console.log("Chat completed successfully, credits remaining:", newCredits);
+      console.log(
+        "Chat completed successfully, credits remaining:",
+        newCredits,
+      );
 
       res.json({
         userMessage: {
@@ -522,13 +605,12 @@ Respond naturally as this person would, incorporating these traits into your com
         },
         aiMessage: {
           id: assistantMessage.id.toString(),
-          role: "assistant", 
+          role: "assistant",
           content: aiMessage,
           audioUrl: audioUrl,
         },
-        creditsRemaining: newCredits
+        creditsRemaining: newCredits,
       });
-
     } catch (error) {
       console.error("Chat error:", error);
       res.status(500).json({ error: "Failed to process chat message" });
@@ -562,8 +644,8 @@ Respond naturally as this person would, incorporating these traits into your com
 
       const userId = parseInt(req.params.id);
       const { credits } = req.body;
-      
-      if (typeof credits !== 'number' || credits < 0) {
+
+      if (typeof credits !== "number" || credits < 0) {
         return res.status(400).json({ error: "Invalid credits amount" });
       }
 
@@ -602,12 +684,12 @@ Respond naturally as this person would, incorporating these traits into your com
 
       const users = await storage.getAllUsers();
       const allReplicas = [];
-      
+
       for (const user of users) {
         const userReplicas = await storage.getUserReplicas(user.id);
-        const replicasWithUser = userReplicas.map(replica => ({
+        const replicasWithUser = userReplicas.map((replica) => ({
           ...replica,
-          userEmail: user.email
+          userEmail: user.email,
         }));
         allReplicas.push(...replicasWithUser);
       }
@@ -644,19 +726,26 @@ Respond naturally as this person would, incorporating these traits into your com
 
       // Get all voices from ElevenLabs
       if (!ELEVEN_API_KEY) {
-        return res.status(500).json({ error: "ElevenLabs API key not configured" });
+        return res
+          .status(500)
+          .json({ error: "ElevenLabs API key not configured" });
       }
 
-      const voicesResponse = await fetch("https://api.elevenlabs.io/v1/voices", {
-        headers: { "xi-api-key": ELEVEN_API_KEY! }
-      });
+      const voicesResponse = await fetch(
+        "https://api.elevenlabs.io/v1/voices",
+        {
+          headers: { "xi-api-key": ELEVEN_API_KEY! },
+        },
+      );
 
       if (!voicesResponse.ok) {
         throw new Error("Failed to fetch voices from ElevenLabs");
       }
 
       const voicesData = await voicesResponse.json();
-      const clonedVoices = voicesData.voices.filter((voice: any) => voice.category === "cloned");
+      const clonedVoices = voicesData.voices.filter(
+        (voice: any) => voice.category === "cloned",
+      );
 
       let deletedCount = 0;
       let errorCount = 0;
@@ -664,10 +753,13 @@ Respond naturally as this person would, incorporating these traits into your com
       // Delete each cloned voice
       for (const voice of clonedVoices) {
         try {
-          const deleteResponse = await fetch(`https://api.elevenlabs.io/v1/voices/${voice.voice_id}`, {
-            method: "DELETE",
-            headers: { "xi-api-key": ELEVEN_API_KEY! }
-          });
+          const deleteResponse = await fetch(
+            `https://api.elevenlabs.io/v1/voices/${voice.voice_id}`,
+            {
+              method: "DELETE",
+              headers: { "xi-api-key": ELEVEN_API_KEY! },
+            },
+          );
 
           if (deleteResponse.ok) {
             deletedCount++;
@@ -683,7 +775,7 @@ Respond naturally as this person would, incorporating these traits into your com
         message: `Voice cleanup completed`,
         deleted: deletedCount,
         errors: errorCount,
-        total: clonedVoices.length
+        total: clonedVoices.length,
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to cleanup voices" });
