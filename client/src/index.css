@@ -37,8 +37,63 @@
 }
 
 @layer components {
-  .deep-space-bg {
-    background: radial-gradient(circle at center, #0f172a, #020617);
+  .vision-pro-bg {
+    background: linear-gradient(-45deg, #fceabb, #f8b500, #f69d3c, #f3827b, #e06c9f, #a770ef, #4e8af1, #23a6d5);
+    background-size: 400% 400%;
+    animation: gradientBG 25s ease infinite;
+  }
+
+  @keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .translucent-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    transition: all 0.3s ease;
+  }
+
+  .translucent-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .translucent-input:focus {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+  }
+
+  .translucent-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .translucent-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .typing-text {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .link-style {
+    color: rgba(255, 255, 255, 0.6);
+    transition: color 0.3s ease;
+  }
+
+  .link-style:hover {
+    color: #ffffff;
   }
   
   .glass-card {
