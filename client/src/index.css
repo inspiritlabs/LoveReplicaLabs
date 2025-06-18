@@ -283,6 +283,83 @@
     border: none;
     box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
   }
+
+  .trait-slider:hover::-webkit-slider-thumb {
+    transform: scale(1.2);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
+  }
+
+  .trait-slider:hover::-moz-range-thumb {
+    transform: scale(1.2);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 0 0 5px rgba(139, 92, 246, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(244, 114, 182, 0.4);
+    }
+  }
+
+  .trait-visualization {
+    background: linear-gradient(45deg, 
+      rgba(139, 92, 246, 0.1) 0%,
+      rgba(244, 114, 182, 0.1) 25%,
+      rgba(45, 212, 191, 0.1) 50%,
+      rgba(96, 165, 250, 0.1) 75%,
+      rgba(139, 92, 246, 0.1) 100%
+    );
+    background-size: 400% 400%;
+    animation: gradientShift 8s ease infinite;
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+  }
+
+  @keyframes gradientShift {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .trait-emoji-container {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .trait-emoji-container:hover {
+    animation: pulseGlow 2s infinite;
+  }
+
+  .trait-intensity-indicator {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .trait-intensity-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    animation: shimmer 3s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
+    }
+  }
   
   .pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
@@ -362,7 +439,6 @@
     background: rgba(255, 255, 255, 0.08);
     transform: translateY(-2px);
   }
-}
 
 /* Additional responsive and mobile optimizations */
 @media (max-width: 768px) {
@@ -377,4 +453,7 @@
   .message-bubble {
     max-width: 90%;
   }
+}
+
+/* Close the @layer components block */
 }
