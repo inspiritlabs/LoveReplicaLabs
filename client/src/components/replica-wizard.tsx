@@ -411,14 +411,26 @@ export default function ReplicaWizard({ onDone }: ReplicaWizardProps) {
                       {/* Header with emoji and dynamic background */}
                       <div className="flex justify-between items-center mb-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full bg-gradient-to-r ${gradientClass} flex items-center justify-center text-lg transition-all duration-500 group-hover:scale-110`}>
+                          <motion.div 
+                            className={`w-12 h-12 rounded-full bg-gradient-to-r ${gradientClass} flex items-center justify-center text-xl transition-all duration-500 shadow-lg`}
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            whileTap={{ scale: 0.95 }}
+                            animate={{ 
+                              boxShadow: `0 0 ${Math.max(5, value * 2)}px rgba(139, 92, 246, ${0.3 + (value / 20)})` 
+                            }}
+                            transition={{ duration: 0.3 }}
+                          >
                             {trait.emoji}
-                          </div>
+                          </motion.div>
                           <Label className="text-white font-semibold text-lg">{trait.label}</Label>
                         </div>
-                        <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${gradientClass} text-black font-bold text-sm transition-all duration-500`}>
+                        <motion.div 
+                          className={`px-4 py-2 rounded-full bg-gradient-to-r ${gradientClass} text-black font-bold text-sm transition-all duration-500 shadow-md`}
+                          animate={{ scale: [1, 1.05, 1] }}
+                          transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
+                        >
                           {value}/10
-                        </div>
+                        </motion.div>
                       </div>
                       
                       {/* Description with dynamic color */}
@@ -449,11 +461,51 @@ export default function ReplicaWizard({ onDone }: ReplicaWizardProps) {
                         ></div>
                       </div>
                       
-                      {/* Intensity indicator */}
-                      <div className="flex justify-between text-xs text-white/40 mt-2 ml-13">
-                        <span className={intensity === 'low' ? 'text-white/80 font-medium' : ''}>Low</span>
-                        <span className={intensity === 'mid' ? 'text-white/80 font-medium' : ''}>Moderate</span>
-                        <span className={intensity === 'high' ? 'text-white/80 font-medium' : ''}>High</span>
+                      {/* Intensity indicator with visual feedback */}
+                      <div className="flex justify-between text-xs mt-4 ml-13 relative">
+                        <motion.span 
+                          className={`${intensity === 'low' ? 'text-white font-bold' : 'text-white/40'} transition-all duration-300`}
+                          animate={intensity === 'low' ? { scale: [1, 1.1, 1] } : {}}
+                          transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 1.5 }}
+                        >
+                          Low
+                        </motion.span>
+                        <motion.span 
+                          className={`${intensity === 'mid' ? 'text-white font-bold' : 'text-white/40'} transition-all duration-300`}
+                          animate={intensity === 'mid' ? { scale: [1, 1.1, 1] } : {}}
+                          transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 1.5 }}
+                        >
+                          Moderate
+                        </motion.span>
+                        <motion.span 
+                          className={`${intensity === 'high' ? 'text-white font-bold' : 'text-white/40'} transition-all duration-300`}
+                          animate={intensity === 'high' ? { scale: [1, 1.1, 1] } : {}}
+                          transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 1.5 }}
+                        >
+                          High
+                        </motion.span>
+                        
+                        {/* Floating particles based on trait value */}
+                        {Array.from({ length: Math.ceil(value / 2) }).map((_, i) => (
+                          <motion.div
+                            key={i}
+                            className={`absolute w-1 h-1 rounded-full bg-gradient-to-r ${gradientClass} opacity-60`}
+                            style={{
+                              left: `${Math.random() * 100}%`,
+                              top: `-${Math.random() * 20 + 10}px`,
+                            }}
+                            animate={{
+                              y: [-20, -40, -20],
+                              opacity: [0.6, 0.2, 0.6],
+                              scale: [0.5, 1, 0.5],
+                            }}
+                            transition={{
+                              duration: 2 + Math.random() * 2,
+                              repeat: Infinity,
+                              delay: Math.random() * 2,
+                            }}
+                          />
+                        ))}
                       </div>
                     </motion.div>
                   );
