@@ -142,6 +142,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/replicas/:id/bio (used by step-3 of wizard)
+  app.patch("/api/replicas/:id/bio", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { personalityDescription } = req.body;
+      await storage.updateReplica(id, { personalityDescription });
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid request" });
+    }
+  });
+
   // Chat routes
   app.post("/api/chat/messages", async (req, res) => {
     try {
