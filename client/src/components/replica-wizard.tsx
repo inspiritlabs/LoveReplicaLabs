@@ -22,12 +22,48 @@ interface DraftReplica {
 }
 
 const PERSONALITY_TRAITS = [
-  { key: "warmth", label: "Warmth", description: "How warm and caring they are" },
-  { key: "humor", label: "Humor", description: "How funny and playful they are" },
-  { key: "thoughtfulness", label: "Thoughtfulness", description: "How deep and reflective they are" },
-  { key: "empathy", label: "Empathy", description: "How understanding and compassionate they are" },
-  { key: "assertiveness", label: "Assertiveness", description: "How confident and direct they are" },
-  { key: "energy", label: "Energy", description: "How enthusiastic and energetic they are" },
+  { 
+    key: "warmth", 
+    label: "Warmth", 
+    description: "How warm and caring they are",
+    color: { low: "from-blue-500 to-cyan-400", mid: "from-cyan-400 to-green-400", high: "from-green-400 to-yellow-400" },
+    emoji: "💛"
+  },
+  { 
+    key: "humor", 
+    label: "Humor", 
+    description: "How funny and playful they are",
+    color: { low: "from-purple-500 to-pink-400", mid: "from-pink-400 to-orange-400", high: "from-orange-400 to-yellow-400" },
+    emoji: "😄"
+  },
+  { 
+    key: "thoughtfulness", 
+    label: "Thoughtfulness", 
+    description: "How deep and reflective they are",
+    color: { low: "from-gray-500 to-blue-400", mid: "from-blue-400 to-indigo-400", high: "from-indigo-400 to-purple-400" },
+    emoji: "🤔"
+  },
+  { 
+    key: "empathy", 
+    label: "Empathy", 
+    description: "How understanding and compassionate they are",
+    color: { low: "from-pink-500 to-rose-400", mid: "from-rose-400 to-red-400", high: "from-red-400 to-orange-400" },
+    emoji: "💕"
+  },
+  { 
+    key: "assertiveness", 
+    label: "Assertiveness", 
+    description: "How confident and direct they are",
+    color: { low: "from-red-500 to-orange-400", mid: "from-orange-400 to-yellow-400", high: "from-yellow-400 to-green-400" },
+    emoji: "💪"
+  },
+  { 
+    key: "energy", 
+    label: "Energy", 
+    description: "How enthusiastic and energetic they are",
+    color: { low: "from-blue-500 to-green-400", mid: "from-green-400 to-yellow-400", high: "from-yellow-400 to-red-400" },
+    emoji: "⚡"
+  },
 ];
 
 export default function ReplicaWizard({ onDone }: ReplicaWizardProps) {
@@ -324,29 +360,104 @@ export default function ReplicaWizard({ onDone }: ReplicaWizardProps) {
               <h2 className="text-3xl font-bold mb-2">Fine-tune Personality</h2>
               <p className="text-gray-300 mb-8">Adjust these traits to match their personality</p>
 
+              {/* Personality Preview Visualization */}
+              <div className="trait-visualization mb-8 relative overflow-hidden">
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  {PERSONALITY_TRAITS.map((trait) => {
+                    const value = draft.personalityTraits[trait.key];
+                    const intensity = value <= 3 ? 'low' : value <= 7 ? 'mid' : 'high';
+                    const gradientClass = trait.color[intensity];
+                    return (
+                      <div key={trait.key} className="text-center">
+                        <div className={`w-16 h-16 mx-auto rounded-full bg-gradient-to-r ${gradientClass} flex items-center justify-center text-2xl mb-2 trait-emoji-container`}>
+                          {trait.emoji}
+                        </div>
+                        <div className="text-xs text-white/60">{trait.label}</div>
+                        <div className={`text-sm font-bold bg-gradient-to-r ${gradientClass} bg-clip-text text-transparent`}>
+                          {value}/10
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Dynamic personality summary */}
+                <div className="text-center p-4 bg-white/5 rounded-xl backdrop-blur-sm">
+                  <p className="text-sm text-white/80">
+                    Personality Preview: {(() => {
+                      const traits = draft.personalityTraits;
+                      const dominant = Object.entries(traits).sort(([,a], [,b]) => b - a)[0];
+                      const dominantTrait = PERSONALITY_TRAITS.find(t => t.key === dominant[0]);
+                      return `${dominantTrait?.label}-focused with ${dominant[1] >= 8 ? 'very high' : dominant[1] >= 6 ? 'high' : 'moderate'} intensity`;
+                    })()}
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-8">
-                {PERSONALITY_TRAITS.map((trait) => (
-                  <div key={trait.key} className="text-left">
-                    <div className="flex justify-between items-center mb-2">
-                      <Label className="text-white font-medium">{trait.label}</Label>
-                      <span className="text-white/60 text-sm">{draft.personalityTraits[trait.key]}/10</span>
-                    </div>
-                    <p className="text-xs text-white/40 mb-3">{trait.description}</p>
-                    <Slider
-                      value={[draft.personalityTraits[trait.key]]}
-                      onValueChange={([value]) =>
-                        setDraft(d => ({
-                          ...d,
-                          personalityTraits: { ...d.personalityTraits, [trait.key]: value }
-                        }))
-                      }
-                      max={10}
-                      min={1}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                ))}
+                {PERSONALITY_TRAITS.map((trait) => {
+                  const value = draft.personalityTraits[trait.key];
+                  const intensity = value <= 3 ? 'low' : value <= 7 ? 'mid' : 'high';
+                  const gradientClass = trait.color[intensity];
+                  
+                  return (
+                    <motion.div 
+                      key={trait.key} 
+                      className="text-left group"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: PERSONALITY_TRAITS.indexOf(trait) * 0.1 }}
+                    >
+                      {/* Header with emoji and dynamic background */}
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full bg-gradient-to-r ${gradientClass} flex items-center justify-center text-lg transition-all duration-500 group-hover:scale-110`}>
+                            {trait.emoji}
+                          </div>
+                          <Label className="text-white font-semibold text-lg">{trait.label}</Label>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${gradientClass} text-black font-bold text-sm transition-all duration-500`}>
+                          {value}/10
+                        </div>
+                      </div>
+                      
+                      {/* Description with dynamic color */}
+                      <p className="text-sm text-white/60 mb-4 ml-13">{trait.description}</p>
+                      
+                      {/* Interactive slider with gradient track */}
+                      <div className="relative ml-13">
+                        <div className={`h-3 rounded-full bg-gradient-to-r ${gradientClass} opacity-20 mb-4`}></div>
+                        <div className="absolute top-0 w-full">
+                          <Slider
+                            value={[value]}
+                            onValueChange={([newValue]) =>
+                              setDraft(d => ({
+                                ...d,
+                                personalityTraits: { ...d.personalityTraits, [trait.key]: newValue }
+                              }))
+                            }
+                            max={10}
+                            min={1}
+                            step={1}
+                            className="w-full trait-slider"
+                          />
+                        </div>
+                        {/* Visual progress indicator */}
+                        <div 
+                          className={`absolute top-1 h-1 rounded-full bg-gradient-to-r ${gradientClass} transition-all duration-300`}
+                          style={{ width: `${(value / 10) * 100}%` }}
+                        ></div>
+                      </div>
+                      
+                      {/* Intensity indicator */}
+                      <div className="flex justify-between text-xs text-white/40 mt-2 ml-13">
+                        <span className={intensity === 'low' ? 'text-white/80 font-medium' : ''}>Low</span>
+                        <span className={intensity === 'mid' ? 'text-white/80 font-medium' : ''}>Moderate</span>
+                        <span className={intensity === 'high' ? 'text-white/80 font-medium' : ''}>High</span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
 
                 <div className="flex gap-4 pt-4">
                   <Button
