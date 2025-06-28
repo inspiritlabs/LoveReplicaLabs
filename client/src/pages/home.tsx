@@ -1,7 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
-import AccessCodeValidator from "@/components/access-code-validator";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -11,14 +9,32 @@ export default function Home() {
   const [accessCode, setAccessCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showAccessValidator, setShowAccessValidator] = useState(false);
+  const [typedText, setTypedText] = useState("");
+
+  // Typing animation effect
+  useEffect(() => {
+    const textToType = isSignIn ? "Welcome back" : "Create your account";
+    let charIndex = 0;
+    setTypedText("");
+
+    const typeEffect = () => {
+      if (charIndex < textToType.length) {
+        setTypedText(textToType.slice(0, charIndex + 1));
+        charIndex++;
+        setTimeout(typeEffect, 120);
+      }
+    };
+
+    const timer = setTimeout(typeEffect, 500);
+    return () => clearTimeout(timer);
+  }, [isSignIn]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
 
     if (!isSignIn && !accessCode.trim()) {
-      setShowAccessValidator(true);
+      setError("Access code is required for registration");
       return;
     }
 
@@ -52,66 +68,57 @@ export default function Home() {
     }
   };
 
-  const handleValidCode = (code: string) => {
-    setAccessCode(code);
-    setShowAccessValidator(false);
-  };
-
-  if (showAccessValidator) {
-    return <AccessCodeValidator onValidCode={handleValidCode} />;
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="glass-card rounded-2xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold cosmic-glow mb-2">Inspirt Labs</h1>
-          <p className="text-gray-400">
-            {isSignIn ? "Welcome back" : "Create your account"}
+    <div className="vision-pro-bg min-h-screen flex items-center justify-center px-4 text-white text-center overflow-hidden">
+      <div className="w-full max-w-md space-y-8">
+        <div className="mb-10">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-white mb-3">
+            Inspirit Labs
+          </h1>
+          <p 
+            className="text-lg text-gray-300 mx-auto w-max typing-text"
+            style={{
+              borderRight: typedText.length > 0 && typedText.length < (isSignIn ? "Welcome back" : "Create your account").length 
+                ? '.15em solid rgba(255, 255, 255, 0.7)' 
+                : 'none'
+            }}
+          >
+            {typedText}
           </p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-6">
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-4 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
-              required
-            />
-          </div>
-
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-4 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
-              required
-            />
-          </div>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="translucent-input w-full px-5 py-4 rounded-xl text-white text-base placeholder-gray-400"
+            required
+          />
+          
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="translucent-input w-full px-5 py-4 rounded-xl text-white text-base placeholder-gray-400"
+            required
+          />
 
           {!isSignIn && (
-            <div>
-              <input
-                type="text"
-                placeholder="Access Code"
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-                className="w-full p-4 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Enter your invitation access code
-              </p>
-            </div>
+            <input
+              type="text"
+              placeholder="Access Code (INSP-XXXX-XXXX-XXXX)"
+              value={accessCode}
+              onChange={(e) => setAccessCode(e.target.value)}
+              className="translucent-input w-full px-5 py-4 rounded-xl text-white text-base placeholder-gray-400"
+              required
+            />
           )}
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
+            <div className="translucent-input border-red-500/50 bg-red-500/20 rounded-xl p-4 text-red-200 text-sm">
               {error}
             </div>
           )}
@@ -119,7 +126,7 @@ export default function Home() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full primary-button px-6 py-4 rounded-lg font-semibold text-white disabled:opacity-50"
+            className="translucent-button w-full text-white font-semibold py-4 px-4 rounded-xl text-lg focus:outline-none focus:ring-4 focus:ring-gray-400 focus:ring-opacity-50 disabled:opacity-50"
           >
             {isLoading
               ? "Please wait..."
@@ -129,27 +136,20 @@ export default function Home() {
           </button>
         </form>
 
-
-
-        <div className="text-center mt-6">
-          <button
-            onClick={() => setIsSignIn(!isSignIn)}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            {isSignIn
-              ? "Need an account? Sign up"
-              : "Already have an account? Sign in"}
-          </button>
-        </div>
-
-        <div className="text-center mt-8 pt-6 border-t border-white/10">
-          <p className="text-sm text-gray-400">
-            Need help? Contact us at{" "}
-            <a 
-              href="mailto:inspiritlabs@gmail.com" 
-              className="text-purple-400 hover:text-purple-300 transition-colors"
+        <div className="mt-6 space-y-2 text-sm">
+          <p className="link-style">
+            {isSignIn ? "Need an account?" : "Already have an account?"}{" "}
+            <button
+              onClick={() => setIsSignIn(!isSignIn)}
+              className="font-semibold text-white hover:underline"
             >
-              inspiritlabs@gmail.com
+              {isSignIn ? "Sign up" : "Sign in"}
+            </button>
+          </p>
+          <p className="link-style text-xs">
+            Need help?{" "}
+            <a href="mailto:inspiritlabs@gmail.com" className="hover:underline">
+              Contact us at inspiritlabs@gmail.com
             </a>
           </p>
         </div>

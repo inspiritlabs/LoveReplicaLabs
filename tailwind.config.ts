@@ -84,6 +84,12 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      boxShadow: {
+        'card': '0 4px 24px rgba(255,255,255,0.06)'
+      },
+      backdropBlur: {
+        'xs': '2px'
+      }
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
