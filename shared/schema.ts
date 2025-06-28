@@ -90,9 +90,6 @@ export const insertAccessCodeSchema = createInsertSchema(accessCodes).pick({
 export const insertReplicaSchema = createInsertSchema(replicas).omit({
   id: true,
   createdAt: true,
-}).extend({
-  personalityDescription: z.string().optional(),
-  personalityTraits: z.record(z.number()).optional(),
 });
 
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
