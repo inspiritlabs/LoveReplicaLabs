@@ -1,111 +1,116 @@
-# Inspirt Labs - AI Voice Replica Platform
+# replit.md
 
 ## Overview
 
-Inspirt Labs is a full-stack web application that enables users to create interactive digital replicas of loved ones using advanced AI voice technology. Users can upload voice samples, define personality traits, and engage in realistic conversations with AI-powered digital personas. The platform features a premium subscription model with tiered access to different levels of functionality.
+Inspirit Labs is a premium AI-powered platform that enables users to create interactive digital replicas of loved ones through advanced voice synthesis and personality modeling. The application combines voice cloning technology from ElevenLabs with OpenAI's conversational AI to deliver authentic, emotionally resonant interactions.
 
 ## System Architecture
 
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
-- **Styling**: Tailwind CSS with custom design system featuring glassmorphism effects and cosmic themes
+- **Routing**: Wouter for client-side routing
+- **Styling**: Tailwind CSS with custom design system featuring glassmorphism and cosmic themes
 - **UI Components**: Radix UI primitives with shadcn/ui component library
-- **State Management**: React Query (TanStack Query) for server state management
-- **Routing**: Wouter for lightweight client-side routing
-- **Build Tool**: Vite with custom configuration for development and production
+- **Animations**: Framer Motion for smooth transitions and wizard flows
+- **State Management**: React Query (TanStack Query) for server state, React hooks for local state
+- **Build Tool**: Vite with TypeScript support
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js framework
 - **Language**: TypeScript with ES modules
-- **API Design**: RESTful API with JSON communication
-- **Authentication**: Access code-based registration system with bcrypt password hashing
-- **Session Management**: Express sessions with PostgreSQL store
+- **API Design**: RESTful endpoints with JSON communication
+- **Authentication**: Session-based authentication with bcrypt password hashing
+- **File Handling**: Direct integration with ElevenLabs API for voice file processing
 
-### Database Architecture
-- **Primary Database**: PostgreSQL via Neon serverless
-- **ORM**: Drizzle ORM with type-safe schema definitions
-- **Connection**: Connection pooling with @neondatabase/serverless
-- **Migrations**: Drizzle Kit for schema management
+### Data Storage Solutions
+- **Database**: PostgreSQL with Neon serverless hosting
+- **ORM**: Drizzle ORM for type-safe database operations
+- **Schema Management**: Drizzle Kit for migrations and schema updates
+- **Connection**: Connection pooling via @neondatabase/serverless
 
 ## Key Components
 
 ### Authentication System
-- Access code validation for user registration
-- Email/password authentication with bcrypt hashing
-- Session-based authentication with persistent storage
+- Access code validation system for user registration
+- Email/password authentication with bcrypt encryption
+- Session management for persistent login state
 - Admin role-based access control
 
-### AI Voice Processing
-- Integration with OpenAI API for chat completion
-- ElevenLabs API integration for voice synthesis (optional)
-- Personality trait modeling with customizable parameters
-- Voice cloning and character consistency
+### Replica Creation Wizard
+- Four-step wizard using Framer Motion animations:
+  1. Name and basic information
+  2. Voice sample upload and processing
+  3. Personality description and biography
+  4. Personality trait configuration with sliders
+- Real-time form validation with Zod schemas
+- File upload handling for voice samples and photos
 
-### User Management
-- Credit-based usage system with message limits
-- Tiered subscription plans (Starter, Pro, Elite)
-- User profile management with replica creation
-- Admin dashboard for system monitoring
+### Voice Processing Pipeline
+- **Voice Cloning**: ElevenLabs API integration for voice model creation
+- **Text-to-Speech**: Real-time voice synthesis using cloned voice models
+- **Audio Playback**: Browser-based audio streaming and playback
 
 ### Chat Interface
-- Real-time conversation interface with voice playback
-- Message history persistence
-- Feedback system for AI responses
-- Photo memory integration with floating animations
+- Immersive full-screen chat experience
+- Real-time message streaming
+- Voice response generation and playback
+- Photo gallery integration with floating animations
+- Message feedback system (thumbs up/down)
 
-### Replica Creation
-- Voice sample upload and processing
-- Personality trait configuration (warmth, humor, thoughtfulness, etc.)
-- Photo gallery integration
-- Character name and description setup
+### Subscription Management
+- Three-tier pricing model (Starter $24, Pro $99, Elite $279)
+- Usage tracking for messages and credits
+- Upgrade overlay for plan promotion
+- Stripe integration preparation for payments
 
 ## Data Flow
 
-1. **User Registration**: Access code validation → Account creation → Dashboard access
-2. **Replica Creation**: Voice upload → Personality configuration → AI model training
-3. **Chat Interaction**: Message sending → AI processing → Voice synthesis → Response delivery
-4. **Subscription Management**: Usage tracking → Upgrade prompts → Payment processing
+1. **User Registration**: Access code validation → Account creation → Session establishment
+2. **Replica Creation**: Wizard completion → Voice processing → Database storage → Chat availability
+3. **Chat Interaction**: Message input → OpenAI processing → Voice synthesis → Response delivery
+4. **Voice Processing**: File upload → ElevenLabs cloning → Voice ID storage → TTS capability
 
 ## External Dependencies
 
-### Required Services
-- **OpenAI API**: Core AI chat completion functionality
-- **PostgreSQL Database**: Primary data storage via Neon
-- **Stripe**: Payment processing for subscriptions
+### AI Services
+- **OpenAI GPT-4**: Conversational AI for replica responses
+- **ElevenLabs**: Voice cloning and text-to-speech synthesis
 
-### Optional Services
-- **ElevenLabs API**: Advanced voice synthesis capabilities
-- **Replit Development Tools**: Development environment integration
+### Infrastructure
+- **Neon**: Serverless PostgreSQL database hosting
+- **Replit**: Development and deployment platform
+- **Stripe**: Payment processing (configured for future implementation)
 
-### Key Libraries
-- **Drizzle ORM**: Type-safe database operations
-- **React Query**: Server state management and caching
-- **Radix UI**: Accessible component primitives
-- **Tailwind CSS**: Utility-first styling framework
-- **bcrypt**: Password hashing and security
+### Development Tools
+- **TypeScript**: Type safety across full stack
+- **ESBuild**: Production bundling for server code
+- **PostCSS**: CSS processing with Tailwind
+- **Drizzle Kit**: Database schema management
 
 ## Deployment Strategy
 
 ### Development Environment
-- Vite development server with hot module replacement
-- Automatic error overlay for runtime issues
-- TypeScript compilation with strict mode
-- Replit integration for cloud development
+- Hot module replacement via Vite dev server
+- TypeScript compilation with incremental builds
+- Database connection via environment variables
+- API key configuration for external services
 
 ### Production Build
-- Vite production build with optimizations
-- ESBuild for server bundling
-- Static asset optimization and compression
-- Environment variable configuration
+- Client build: Vite production bundle with optimizations
+- Server build: ESBuild bundling with external package handling
+- Static asset serving from dist/public directory
+- Environment-based configuration management
 
-### Database Management
-- Drizzle migrations for schema updates
-- Connection pooling for scalability
-- Backup and recovery procedures
-- Performance monitoring
+### Environment Configuration
+Required environment variables:
+- `DATABASE_URL`: Neon PostgreSQL connection string
+- `OPENAI_API_KEY`: OpenAI API authentication
+- `ELEVEN_API_KEY`: ElevenLabs API authentication (optional for demo)
+- `NODE_ENV`: Environment specification
 
 ## Changelog
 
+Changelog:
 - June 28, 2025. Initial setup
 
 ## User Preferences
