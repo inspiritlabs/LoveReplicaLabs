@@ -1,6 +1,72 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+dist/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# API Keys and secrets (never commit these)
+*.key
+*.pem
+secrets/
+config/secrets.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# OS generated files
 .DS_Store
-server/public
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build files
+build/
+server/public/
 vite.config.ts.*
 *.tar.gz
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# User uploaded files
+uploads/
+attached_assets/
+
+# Access codes (sensitive data)
+access_codes*.txt
